@@ -1,0 +1,18 @@
+[project]
+name = "autogame"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "autoxkit>=0.6.8",
+    "infi-systray>=0.1.12.1",
+    "numpy<2.0.0",
+    "onnxruntime-gpu==1.14.1",
+    "opencv-contrib-python==4.7.0.72",
+    "opencv-python-headless==4.7.0.72",
+    "pillow>=12.2.0",
+    "pyclipper>=1.4.0",
+    "pywebview>=6.2.1",
+    "shapely>=2.1.2",
+]
