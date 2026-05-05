@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, inject, type Ref } from 'vue'
+
+type Theme = 'light' | 'dark'
 
 interface MenuItem {
   id: string
@@ -8,11 +10,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'mouse', label: '鼠标控制', icon: '' },
+  { id: 'keymouse', label: '键鼠控制', icon: '' },
   { id: 'screencast', label: '手机投屏', icon: '' },
 ]
 
 const hoveredItem = ref<string | null>(null)
+const currentTheme = inject<Ref<Theme>>('theme')
 
 const emit = defineEmits<{
   (e: 'navigate', id: string): void
@@ -24,7 +27,7 @@ function handleClick(id: string) {
 </script>
 
 <template>
-  <div class="sidebar">
+  <div class="sidebar" :data-theme="currentTheme">
     <div class="menu-top">
       <div
         v-for="item in menuItems"
@@ -35,8 +38,28 @@ function handleClick(id: string) {
         @click="handleClick(item.id)"
       >
         <div class="icon-placeholder">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <rect x="4" y="4" width="16" height="16" rx="2" />
+          <svg v-if="item.id === 'keymouse'" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="5" width="18" height="11" rx="1.5" fill="#4a9eff" stroke="#ffffff" stroke-width="1"/>
+            <rect x="4" y="7" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="7" y="7" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="10" y="7" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="13" y="7" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="4" y="10" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="7" y="10" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="10" y="10" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <rect x="13" y="10" width="2.5" height="2" rx="0.5" fill="#ffffff"/>
+            <ellipse cx="18" cy="17" rx="4" ry="5" fill="#8b5cf6" stroke="#ffffff" stroke-width="1"/>
+            <ellipse cx="18" cy="15" rx="1.5" ry="1" fill="#ffffff"/>
+            <ellipse cx="18" cy="18.5" rx="1.5" ry="1" fill="#ffffff"/>
+            <line x1="18" y1="15.8" x2="18" y2="17.5" stroke="#ffffff" stroke-width="1"/>
+          </svg>
+          <svg v-else-if="item.id === 'screencast'" viewBox="0 0 24 24" fill="none">
+            <rect x="1" y="4" width="19" height="13" rx="2" fill="#6366f1" stroke="#ffffff" stroke-width="1"/>
+            <rect x="3" y="6" width="15" height="9" rx="0.5" fill="#1a1a2e"/>
+            <rect x="10" y="15.5" width="1" height="2" rx="0.3" fill="#ffffff"/>
+            <rect x="12" y="8" width="9" height="13" rx="1.5" fill="#10b981" stroke="#ffffff" stroke-width="1"/>
+            <rect x="13.5" y="9.5" width="6" height="9" rx="0.5" fill="#1a1a2e"/>
+            <circle cx="16.5" cy="20.5" r="0.8" fill="#ffffff"/>
           </svg>
         </div>
         <Transition name="tooltip">
@@ -54,9 +77,9 @@ function handleClick(id: string) {
         @click="handleClick('settings')"
       >
         <div class="icon-placeholder">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+          <svg viewBox="0 0 24 24" fill="none">
+            <polygon points="3,12 7.5,4 16.5,4 21,12 16.5,20 7.5,20" fill="none" :stroke="currentTheme === 'dark' ? '#ffffff' : '#1F2430'" stroke-width="2"/>
+            <circle cx="12" cy="12" r="3.5" fill="none" :stroke="currentTheme === 'dark' ? '#ffffff' : '#1F2430'" stroke-width="2"/>
           </svg>
         </div>
         <Transition name="tooltip">
@@ -73,12 +96,19 @@ function handleClick(id: string) {
 .sidebar {
   width: 60px;
   height: 100%;
-  background-color: #1a1a2e;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 16px 8px;
   box-sizing: border-box;
+}
+
+.sidebar[data-theme="dark"] {
+  background-color: #1F2430;
+}
+
+.sidebar[data-theme="light"] {
+  background-color: #EDE8EE;
 }
 
 .menu-top {
@@ -105,14 +135,25 @@ function handleClick(id: string) {
   transition: background-color 0.2s;
 }
 
-.menu-item:hover {
-  background-color: #16213e;
+.sidebar[data-theme="dark"] .menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar[data-theme="light"] .menu-item:hover {
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .icon-placeholder {
   width: 28px;
   height: 28px;
+}
+
+.sidebar[data-theme="dark"] .icon-placeholder {
   color: #e0e0e0;
+}
+
+.sidebar[data-theme="light"] .icon-placeholder {
+  color: #1F2430;
 }
 
 .icon-placeholder svg {
@@ -123,14 +164,22 @@ function handleClick(id: string) {
 .tooltip {
   position: absolute;
   left: 54px;
-  background-color: #2d2d44;
-  color: #ffffff;
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 14px;
   white-space: nowrap;
   z-index: 1000;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar[data-theme="dark"] .tooltip {
+  background-color: #2d2d44;
+  color: #ffffff;
+}
+
+.sidebar[data-theme="light"] .tooltip {
+  background-color: #ffffff;
+  color: #1F2430;
 }
 
 .tooltip-enter-active,
