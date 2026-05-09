@@ -39,12 +39,12 @@ class MacroFile:
             self.logger.error(f'加载宏文件 报错信息：{e}')
             return False
 
-    def save_macro_file(self, macro_file: str, file_name: str):
+    def save_macro_file(self, file_name: str, macro_file: str):
         """
             保存宏文件
         Args:
-            macro_file (str): 宏文件内容文字
             file_name (str): 宏文件名(不包含扩展名)
+            macro_file (str): 宏文件内容文字
         Returns:
             dict | False: 宏文件内容字典 | False
         """

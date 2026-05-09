@@ -39,11 +39,11 @@ class Api:
     def get_macro_files(self):
         return self.macro_file.get_macro_files()
 
-    def load_macrofile(self, name: str):
-        return self.macro_file.load_macro_file(name)
+    def load_macrofile(self, file_name: str):
+        return self.macro_file.load_macro_file(file_name)
 
-    def save_macrofile(self, name: str):
-        return self.macro_file.save_macro_file(name)
+    def save_macrofile(self, file_name: str, macro_file: str):
+        return self.macro_file.save_macro_file(file_name, macro_file)
 
     def set_window(self, window):
         self._window = window
@@ -86,4 +86,6 @@ class Api:
         return self._save_config(config)
 
     def __dir__(self):
-        return ['get_app_info', 'minimize', 'close', 'toggle_maximize', 'get_config', 'save_config']
+        return ['get_app_info', 'minimize', 'close', 'toggle_maximize',
+        'get_config', 'save_config',
+        'get_macro_files', 'load_macrofile', 'save_macrofile']

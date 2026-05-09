@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, provide } from 'vue'
 import Sidebar from './components/Sidebar.vue'
+import KeymouseControl from './components/KeymouseControl.vue'
 import './App.css'
 
 type Theme = 'light' | 'dark'
@@ -143,8 +144,9 @@ provide('toggleTheme', toggleTheme)
       <main class="content">
         <div class="view-container">
           <div v-if="currentView === 'hidden'" class="hidden-view"></div>
-          <h1 v-else-if="currentView !== 'settings'">{{ currentView === 'keymouse' ? '键鼠控制' : '手机投屏' }}</h1>
-          <div v-if="currentView === 'settings'" class="settings-content">
+          <KeymouseControl v-else-if="currentView === 'keymouse'" />
+          <h1 v-else-if="currentView === 'screencast'">手机投屏</h1>
+          <div v-else-if="currentView === 'settings'" class="settings-content">
             <div class="setting-item">
               <span class="setting-label">主题模式</span>
               <button class="theme-toggle-btn" @click="toggleTheme">
@@ -172,7 +174,6 @@ provide('toggleTheme', toggleTheme)
               </div>
             </div>
           </div>
-          <p v-else-if="currentView !== 'hidden'">内容区域 - {{ currentView }}</p>
         </div>
       </main>
     </div>
