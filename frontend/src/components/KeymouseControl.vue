@@ -6,6 +6,10 @@ type Theme = 'light' | 'dark'
 const currentTheme = inject<Ref<Theme>>('theme')
 const macroFiles = ref<string[]>([])
 const hoveredButtons = ref<Record<string, string>>({})
+const isRenaming = ref(false)
+const renameFileName = ref('')
+const renameInputValue = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
 
 function showTooltip(key: string, text: string) {
   hoveredButtons.value[key] = text
@@ -47,7 +51,45 @@ async function openFolder(fileName: string) {
 }
 
 function renameFile(fileName: string) {
-  console.log('Rename file:', fileName)
+  hideTooltip(`${fileName}-rename`)
+  isRenaming.value = true
+  renameFileName.value = fileName
+  renameInputValue.value = fileName.replace('.json', '')
+  setTimeout(() => {
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  }, 100)
+}
+
+async function confirmRename() {
+  if (!renameInputValue.value.trim()) return
+  const newName = renameInputValue.value.trim()
+  const oldName = renameFileName.value.replace('.json', '')
+  if (newName === oldName) {
+    closeRename()
+    return
+  }
+  try {
+    await (window as any).pywebview.api.rename_file(oldName, newName)
+    await loadMacroFiles()
+    closeRename()
+  } catch (e) {
+    console.error('Failed to rename file:', e)
+  }
+}
+
+function closeRename() {
+  isRenaming.value = false
+  renameFileName.value = ''
+  renameInputValue.value = ''
+}
+
+function handleRenameKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    confirmRename()
+  } else if (event.key === 'Escape') {
+    closeRename()
+  }
 }
 
 async function deleteFile(fileName: string) {
@@ -203,5 +245,24 @@ onMounted(() => {
       </div>
       </div>
     </div>
+
+    <Transition name="fade">
+      <div v-if="isRenaming" class="rename-overlay" @click="closeRename">
+        <div class="rename-modal" @click.stop>
+          <div class="rename-label">重命名</div>
+          <input
+            ref="renameInputRef"
+            v-model="renameInputValue"
+            type="text"
+            class="rename-input"
+            @keydown="handleRenameKeydown"
+          />
+          <div class="rename-buttons">
+            <button class="rename-btn cancel-btn" @click="closeRename">取消</button>
+            <button class="rename-btn confirm-btn" @click="confirmRename">确定</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
