@@ -136,7 +136,7 @@ class AutoGameApp:
         self._create_window()
         Thread(target=self.run_tray, daemon=True).start()
         Thread(target=self.macro.start, daemon=True).start()
-        webview.start(debug=False)
+        webview.start(debug=self.debug)
 
 
 if __name__ == '__main__':

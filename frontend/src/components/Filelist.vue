@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject, type Ref, computed } from 'vue'
+import { ref, onMounted, inject, type Ref } from 'vue'
+import Jsoneditor from './Jsoneditor.vue'
 
 type Theme = 'light' | 'dark'
 
@@ -57,26 +58,12 @@ async function openFile(fileName: string) {
 }
 
 function goBack() {
-    currentView.value = 'list'
-    currentFileName.value = ''
-    editorContent.value = ''
-  }
+  currentView.value = 'list'
+  currentFileName.value = ''
+  editorContent.value = ''
+}
 
-  function handleTabKey(event: KeyboardEvent) {
-    if (event.key === 'Tab') {
-      event.preventDefault()
-      const textarea = event.target as HTMLTextAreaElement
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      const value = textarea.value
-      editorContent.value = value.substring(0, start) + '    ' + value.substring(end)
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 4
-      }, 0)
-    }
-  }
-
-  async function openFolder(fileName: string) {
+async function openFolder(fileName: string) {
   try {
     await (window as any).pywebview.api.open_folder(fileName)
   } catch (e) {
@@ -153,10 +140,10 @@ onMounted(() => {
 })
 </script>
 
-<style src="./KeymouseControl.css" scoped></style>
+<style src="./Filelist.css" scoped></style>
 
 <template>
-  <div class="keymouse-control" :data-theme="currentTheme">
+  <div class="file-list" :data-theme="currentTheme">
     <template v-if="currentView === 'list'">
       <h1 class="section-title">项目文件</h1>
       <div class="top-button-bar">
@@ -283,28 +270,12 @@ onMounted(() => {
     </template>
 
     <template v-else-if="currentView === 'editor'">
-      <div class="editor-header">
-        <button
-          class="back-btn"
-          @click="goBack"
-          @mouseenter="showTooltip('back', '返回')"
-          @mouseleave="hideTooltip('back')"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          <span>返回</span>
-        </button>
-        <span class="file-title">{{ currentFileName }}</span>
-      </div>
-      <div class="editor-container">
-        <textarea
-          class="text-editor"
-          v-model="editorContent"
-          placeholder="在此输入宏内容..."
-          @keydown="handleTabKey"
-        ></textarea>
-      </div>
+      <Jsoneditor
+        :fileName="currentFileName"
+        :content="editorContent"
+        @back="goBack"
+        @update:content="editorContent = $event"
+      />
     </template>
 
     <Transition name="fade">

@@ -1,4 +1,4 @@
-.keymouse-control {
+.file-list {
   width: 100%;
   height: 100%;
   display: flex;
@@ -11,16 +11,16 @@
   -ms-overflow-style: none;
 }
 
-.keymouse-control .section-title {
+.file-list .section-title {
   font-size: 24px;
   margin-bottom: 16px;
 }
 
-.keymouse-control[data-theme="dark"] .section-title {
+.file-list[data-theme="dark"] .section-title {
   color: #e0e0e0;
 }
 
-.keymouse-control[data-theme="light"] .section-title {
+.file-list[data-theme="light"] .section-title {
   color: #1F2430;
 }
 
@@ -51,7 +51,7 @@
   gap: 12px;
 }
 
-.keymouse-control::-webkit-scrollbar {
+.file-list::-webkit-scrollbar {
   display: none;
 }
 
@@ -64,11 +64,11 @@
   gap: 16px;
 }
 
-.keymouse-control[data-theme="dark"] .macro-item {
+.file-list[data-theme="dark"] .macro-item {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-.keymouse-control[data-theme="light"] .macro-item {
+.file-list[data-theme="light"] .macro-item {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
@@ -99,11 +99,11 @@
   justify-content: flex-end;
 }
 
-.keymouse-control[data-theme="dark"] .file-name {
+.file-list[data-theme="dark"] .file-name {
   color: #e0e0e0;
 }
 
-.keymouse-control[data-theme="light"] .file-name {
+.file-list[data-theme="light"] .file-name {
   color: #1F2430;
 }
 
@@ -123,12 +123,12 @@
   transition: all 0.2s;
 }
 
-.keymouse-control[data-theme="dark"] .action-btn {
+.file-list[data-theme="dark"] .action-btn {
   background-color: rgba(255, 255, 255, 0.1);
   color: #e0e0e0;
 }
 
-.keymouse-control[data-theme="light"] .action-btn {
+.file-list[data-theme="light"] .action-btn {
   background-color: rgba(0, 0, 0, 0.1);
   color: #1F2430;
 }
@@ -137,11 +137,11 @@
   transform: translateY(-1px);
 }
 
-.keymouse-control[data-theme="dark"] .action-btn:hover {
+.file-list[data-theme="dark"] .action-btn:hover {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
-.keymouse-control[data-theme="light"] .action-btn:hover {
+.file-list[data-theme="light"] .action-btn:hover {
   background-color: rgba(0, 0, 0, 0.15);
 }
 
@@ -162,12 +162,12 @@
   transition: all 0.2s;
 }
 
-.keymouse-control[data-theme="dark"] .delete-btn {
+.file-list[data-theme="dark"] .delete-btn {
   background-color: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
 
-.keymouse-control[data-theme="light"] .delete-btn {
+.file-list[data-theme="light"] .delete-btn {
   background-color: rgba(239, 68, 68, 0.1);
   color: #dc2626;
 }
@@ -176,11 +176,11 @@
   transform: translateY(-1px);
 }
 
-.keymouse-control[data-theme="dark"] .delete-btn:hover {
+.file-list[data-theme="dark"] .delete-btn:hover {
   background-color: rgba(239, 68, 68, 0.3);
 }
 
-.keymouse-control[data-theme="light"] .delete-btn:hover {
+.file-list[data-theme="light"] .delete-btn:hover {
   background-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -202,12 +202,12 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.keymouse-control[data-theme="dark"] .btn-wrapper .tooltip {
+.file-list[data-theme="dark"] .btn-wrapper .tooltip {
   background-color: #2d2d44;
   color: #ffffff;
 }
 
-.keymouse-control[data-theme="light"] .btn-wrapper .tooltip {
+.file-list[data-theme="light"] .btn-wrapper .tooltip {
   background-color: #ffffff;
   color: #1F2430;
 }
@@ -245,7 +245,7 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.keymouse-control[data-theme="light"] .rename-modal {
+.file-list[data-theme="light"] .rename-modal {
   background-color: #ffffff;
 }
 
@@ -257,7 +257,7 @@
   text-align: center;
 }
 
-.keymouse-control[data-theme="light"] .rename-label {
+.file-list[data-theme="light"] .rename-label {
   color: #1F2430;
 }
 
@@ -273,7 +273,7 @@
   box-sizing: border-box;
 }
 
-.keymouse-control[data-theme="light"] .rename-input {
+.file-list[data-theme="light"] .rename-input {
   border-color: rgba(0, 0, 0, 0.2);
   background-color: rgba(0, 0, 0, 0.05);
   color: #1F2430;
@@ -305,7 +305,7 @@
   color: #9ca3af;
 }
 
-.keymouse-control[data-theme="light"] .cancel-btn {
+.file-list[data-theme="light"] .cancel-btn {
   background-color: rgba(0, 0, 0, 0.1);
   color: #4A5060;
 }
@@ -314,7 +314,7 @@
   background-color: rgba(255, 255, 255, 0.15);
 }
 
-.keymouse-control[data-theme="light"] .cancel-btn:hover {
+.file-list[data-theme="light"] .cancel-btn:hover {
   background-color: rgba(0, 0, 0, 0.15);
 }
 
@@ -335,107 +335,4 @@
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.editor-header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.back-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.keymouse-control[data-theme="dark"] .back-btn {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
-}
-
-.keymouse-control[data-theme="light"] .back-btn {
-  background-color: rgba(0, 0, 0, 0.1);
-  color: #1F2430;
-}
-
-.back-btn:hover {
-  transform: translateY(-1px);
-}
-
-.keymouse-control[data-theme="dark"] .back-btn:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.keymouse-control[data-theme="light"] .back-btn:hover {
-  background-color: rgba(0, 0, 0, 0.15);
-}
-
-.back-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.file-title {
-  font-size: 18px;
-  font-weight: 500;
-}
-
-.keymouse-control[data-theme="dark"] .file-title {
-  color: #e0e0e0;
-}
-
-.keymouse-control[data-theme="light"] .file-title {
-  color: #1F2430;
-}
-
-.editor-container {
-  width: 100%;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.text-editor {
-  width: 90%;
-  max-width: 900px;
-  height: calc(100vh - 200px);
-  padding: 16px;
-  border: none;
-  border-radius: 12px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.keymouse-control[data-theme="dark"] .text-editor {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.keymouse-control[data-theme="light"] .text-editor {
-  background-color: rgba(0, 0, 0, 0.03);
-  color: #1F2430;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.text-editor::placeholder {
-  opacity: 0.5;
-}
-
-.text-editor:focus {
-  border-color: #4A5060;
 }
