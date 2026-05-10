@@ -36,7 +36,7 @@ class FileManager:
                 self.config_path.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             self.logger.error(f'加载配置文件 报错信息：{e}')
-            raise e
+            return False
         finally:
             return self.config
 
@@ -54,7 +54,7 @@ class FileManager:
             return True
         except Exception as e:
             self.logger.error(f'保存配置文件 报错信息：{e}')
-            raise e
+            return False
 
     def get_macro_files(self):
         """
@@ -83,7 +83,7 @@ class FileManager:
             return macro_file
         except Exception as e:
             self.logger.error(f'加载宏文件 报错信息：{e}')
-            raise e
+            return False
 
     def save_macro_file(self, file_name: str, macro_file: str):
         """
@@ -123,7 +123,7 @@ class FileManager:
                 return ast.literal_eval(text)
             except Exception as e:
                 self.logger.error(f'预处理宏文件 报错信息：{e}')
-                raise e
+                return False
 
         def save_file(macro_file: dict, file_path: str):
             """
@@ -137,7 +137,7 @@ class FileManager:
                     json.dump(macro_file, f, ensure_ascii=False, indent=4)
             except Exception as e:
                 self.logger.error(f'保存宏文件 报错信息：{e}')
-                raise e
+                return False
 
         try:
             file_path = self.macro_dir / f'{file_name}.json'
@@ -147,7 +147,7 @@ class FileManager:
             return macro_file
         except Exception as e:
             self.logger.error(f'保存宏文件 报错信息：{e}')
-            raise e
+            return False
 
     def create_new_file(self):
         """
@@ -164,7 +164,7 @@ class FileManager:
             self.logger.info(f'创建新文件：{new_file_name}')
         except Exception as e:
             self.logger.error(f'创建新文件 报错信息：{e}')
-            raise e
+            return False
 
     def rename_file(self, old_name: str, new_name: str):
         """
@@ -179,7 +179,7 @@ class FileManager:
             self.logger.info(f'重命名文件：{old_name} -> {new_name}')
         except Exception as e:
             self.logger.error(f'重命名文件 报错信息：{e}')
-            raise e
+            return False
 
     def open_folder(self, file_name: str):
         """
@@ -191,7 +191,7 @@ class FileManager:
             self.logger.info(f'打开文件夹：{file_name}')
         except Exception as e:
             self.logger.error(f'打开文件夹 报错信息：{e}')
-            raise e
+            return False
 
     def delete_file(self, file_name: str):
         """
@@ -205,7 +205,7 @@ class FileManager:
             self.logger.error(f'删除文件：{file_name}')
         except Exception as e:
             self.logger.error(f'删除文件 报错信息：{e}')
-            raise e
+            return False
 
     def set_memory_handler(self, handler):
         """
@@ -227,7 +227,7 @@ class FileManager:
             return '日志系统未初始化'
         except Exception as e:
             self.logger.error(f'获取内存日志 报错信息：{e}')
-            raise e
+            return False
 
     def clear_memory_logs(self):
         """
@@ -241,7 +241,7 @@ class FileManager:
             return False
         except Exception as e:
             self.logger.error(f'清空内存日志 报错信息：{e}')
-            raise e
+            return False
 
     def has_new_error(self):
         """
@@ -255,7 +255,7 @@ class FileManager:
             return False
         except Exception as e:
             self.logger.error(f'检查新错误 报错信息：{e}')
-            raise e
+            return False
 
     def clear_new_error_flag(self):
         """
@@ -268,4 +268,4 @@ class FileManager:
             return False
         except Exception as e:
             self.logger.error(f'清除错误标记 报错信息：{e}')
-            raise e
+            return False

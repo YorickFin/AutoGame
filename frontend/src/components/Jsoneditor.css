@@ -14,8 +14,15 @@
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .back-btn {
@@ -69,6 +76,51 @@
 
 .json-editor[data-theme="light"] .file-title {
   color: #1F2430;
+}
+
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.json-editor[data-theme="dark"] .save-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.json-editor[data-theme="light"] .save-btn {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #1F2430;
+}
+
+.save-btn:hover {
+  transform: translateY(-1px);
+}
+
+.json-editor[data-theme="dark"] .save-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.json-editor[data-theme="light"] .save-btn:hover {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.json-editor .save-btn.success {
+  background-color: #22c55e !important;
+  color: white !important;
+}
+
+.json-editor .save-btn.error {
+  background-color: #ef4444 !important;
+  color: white !important;
 }
 
 .editor-container {
