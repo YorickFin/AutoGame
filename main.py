@@ -100,6 +100,7 @@ class AutoGameApp:
         self.file_manager = FileManager(self.logger, self.macro)
         self.file_manager.set_memory_handler(memory_handler)
         self.api = Api(self.logger, self.file_manager, self.macro)
+        self.macro.set_api(self.api)
 
         self.is_frozen = getattr(sys, 'frozen', False)
         self.debug = not self.is_frozen
@@ -161,6 +162,7 @@ class AutoGameApp:
             self.tray.visible = False
             self.tray.stop()
         if self.macro:
+            self.macro.restore_mouse_icon()
             self.macro.stop()
 
     def _create_tray(self):

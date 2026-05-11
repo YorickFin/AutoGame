@@ -12,11 +12,11 @@ class Api:
 
     def get_config_file(self):
         config = self.file_manager.load_config_file()
-        self.macro.set_main_switch_key(config['macroSwitch'])
+        self.macro.set_macro_switch_key(config['macroSwitch'])
         return config
 
     def save_config_file(self, config):
-        self.macro.set_main_switch_key(config['macroSwitch'])
+        self.macro.set_macro_switch_key(config['macroSwitch'])
         return self.file_manager.save_config_file(config)
 
     def get_macro_files(self):
@@ -52,7 +52,7 @@ class Api:
     def clear_new_error_flag(self):
         return self.file_manager.clear_new_error_flag()
 
-    def get_main_switch_key_name(self):
+    def get_macro_switch_key_name(self):
         key_name = self.macro.get_key_name()
         if key_name in self._no_key_names:
             return False
@@ -101,12 +101,21 @@ class Api:
                 return True
         return False
 
+    def disable_json_editor(self):
+        if self._window:
+            self._window.evaluate_js('window.disableJsonEditor()')
+
+    def enable_json_editor(self):
+        if self._window:
+            self._window.evaluate_js('window.enableJsonEditor()')
+
     def __dir__(self):
         return [
             'get_app_info', 'minimize', 'close', 'toggle_maximize',
             'get_config_file', 'save_config_file',
-            'get_main_switch_key_name', 'get_key_name', 'get_mouse_position', 'get_pixel_color',
+            'get_macro_switch_key_name', 'get_key_name', 'get_mouse_position', 'get_pixel_color',
             'get_macro_files', 'load_macrofile', 'save_macrofile',
             'create_new_file', 'rename_file', 'open_folder', 'delete_file',
             'get_memory_logs', 'clear_memory_logs', 'has_new_error', 'clear_new_error_flag',
+            'disable_json_editor', 'enable_json_editor',
         ]

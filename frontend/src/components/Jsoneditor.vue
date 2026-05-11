@@ -93,6 +93,7 @@ const editorRef = ref<HTMLDivElement | null>(null)
 let editorView: EditorView | null = null
 const languageCompartment = new Compartment()
 const themeCompartment = new Compartment()
+const editableCompartment = new Compartment()
 
 const darkHighlightStyle = HighlightStyle.define([
   { tag: tags.propertyName, color: '#80CBC4' },
@@ -123,6 +124,7 @@ function getExtensions() {
     EditorState.tabSize.of(4),
     indentUnit.of('    '),
     EditorView.lineWrapping,
+    editableCompartment.of([]),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         emit('update:content', update.state.doc.toString())
@@ -499,6 +501,29 @@ function handleWindowBlur() {
 function goBack() {
   emit('back')
 }
+
+function disableEditor() {
+  if (editorView) {
+    editorView.dispatch({
+      effects: editableCompartment.reconfigure([
+        EditorView.editable.of(false),
+      ]),
+    })
+  }
+}
+
+function enableEditor() {
+  if (editorView) {
+    editorView.dispatch({
+      effects: editableCompartment.reconfigure([
+        EditorView.editable.of(true),
+      ]),
+    })
+  }
+}
+
+;(window as any).disableJsonEditor = disableEditor
+;(window as any).enableJsonEditor = enableEditor
 </script>
 
 <style src="./Jsoneditor.css" scoped></style>

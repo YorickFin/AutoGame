@@ -52,7 +52,7 @@ async function startListening() {
   isListening.value = true
   listenInterval = setInterval(async () => {
     try {
-      const keyName = await (window as any).pywebview.api.get_main_switch_key_name()
+      const keyName = await (window as any).pywebview.api.get_macro_switch_key_name()
       if (keyName) {
         if (keyName !== macroSwitch.value) {
           macroSwitch.value = keyName;

@@ -12,9 +12,10 @@ class Macro:
     def __init__(self, logger, ocr):
         self.logger = logger
         self.ocr = ocr
+        self.api = None
 
-        self.main_switch = False
-        self.main_switch_key = None
+        self.macro_switch = False
+        self.macro_switch_key = None
         self.key_name = None
         self.macro_file = None
         self.down_state_keys = []  # 记录已经还在按下状态的按键，弹起清理，用来限制线程重复创建
@@ -31,6 +32,21 @@ class Macro:
             '移动': self._move,
             '滚轮': self._wheel_scroll,
             '延迟': self._delay,
+        }
+        self.function_mapping_down = {
+            '连击': lambda data: self.continuous(data),
+            '固定连击': lambda data: self.fixed_continuous(data),
+            '宏': lambda data: self.macros(data),
+            '有序宏': lambda data: self.ordered_macros(data),
+            '跟随': lambda data: self.follow(data, True),
+            '组合': lambda data, args: self.combination(data, args),
+            '映射': lambda data, args: self.mappings(data, args),
+            '图像匹配': lambda data: self.image_match(data),
+            '颜色匹配': lambda data: self.color_match(data),
+            '文字识别': lambda data: self.text_ocr(data)
+        }
+        self.function_mapping_up = {
+            '跟随': lambda data: self.follow(data, False)
         }
 
         self.mouse = Mouse()
@@ -86,7 +102,14 @@ class Macro:
         except Exception as e:
             self.logger.error(f'恢复鼠标图标失败: {e}')
 
+
 #   --------------------------------------------------类属性设置-------------------------------------------------
+
+    def set_api(self, api):
+        """
+            设置 API 引用
+        """
+        self.api = api
 
     def set_macro_file(self, macro_file: dict):
         """
@@ -96,14 +119,14 @@ class Macro:
         """
         self.macro_file = macro_file
 
-    def set_main_switch_key(self, key: str):
+    def set_macro_switch_key(self, key: str):
         """
-            设置主开关按键
+            设置宏开关按键
         Args:
-            key (str): 主开关按键
+            key (str): 宏开关按键
         """
         print(key)
-        self.main_switch_key = key
+        self.macro_switch_key = key
 
     def get_key_name(self):
         """
@@ -152,7 +175,7 @@ class Macro:
         """
         try:
             for action in instruction.split(','):
-                if not self.main_switch:
+                if not self.macro_switch:
                     self.logger.info(f'手动关闭 完整指令：{instruction}')
                     return False
 
@@ -192,7 +215,7 @@ class Macro:
             float_time = round(dtime - int_time, 4)
             if int_time >= 1:
                 for _ in range(int_time):
-                    if not self.main_switch:
+                    if not self.macro_switch:
                         return False
                     time.sleep(1)
             if float_time > 0:
@@ -332,10 +355,10 @@ class Macro:
         self.logger.info(f'功能 连击 data：{data}')
         try:
             sleep_time = round(1 / (int(data['每秒次数'])), 4)
-            while data['触发键'] in self.down_state_keys:
-                if data['宏指令'] in HKC or data['宏指令'] in self.button_mapping:
+            if data['宏指令'] in HKC or data['宏指令'] in self.button_mapping:
+                while data['触发键'] in self.down_state_keys:
                     self.execute_macro(data['宏指令'])
-                time.sleep(sleep_time)
+                    time.sleep(sleep_time)
         except Exception as e:
             self.logger.error(f'功能 连击 报错信息：{e}')
             raise e
@@ -408,17 +431,18 @@ class Macro:
             self.logger.error(f'功能 跟随 报错信息：{e}')
             raise e
 
-    def combination(self, data: dict, auxiliary: str, auxiliary_n: str):
+    def combination(self, data: dict, *args):
         """
             组合
         Args:
             data (dict): 组合数据
-            auxiliary (str): 辅助键
-            auxiliary_n (str): 辅助键2
+            *args: args参数
+                auxiliary (str): 已按下辅助键
+                auxiliary_n (str): 未按下辅助键
         """
         key_mappings = {
-            '辅助': auxiliary,
-            '!辅助': auxiliary_n,
+            '辅助': args[0],
+            '!辅助': args[1],
         }
         self.logger.info(f'功能 组合 data：{data}')
         try:
@@ -442,21 +466,22 @@ class Macro:
             self.logger.error(f'功能 组合 报错信息：{e}')
             raise e
 
-    def mappings(self, data: dict, auxiliary: str, auxiliary_n: str, mapping: str, mapping_n: str):
+    def mappings(self, data: dict, *args):
         """
             映射
         Args:
             data (dict): 映射数据
-            auxiliary (str): 辅助键
-            auxiliary_n (str): 辅助键2
-            mapping (str): 映射键
-            mapping_n (str): 映射键2
+            *args: args参数
+                auxiliary (str): 已按下辅助键
+                auxiliary_n (str): 未按下辅助键
+                mapping (str): 已按下映射键
+                mapping_n (str): 未按下映射键
         """
         key_mappings = {
-            '辅助': auxiliary,
-            '!辅助': auxiliary_n,
-            '映射': mapping,
-            '!映射': mapping_n,
+            '辅助': args[0],
+            '!辅助': args[1],
+            '映射': args[2],
+            '!映射': args[3],
         }
         self.logger.info(f'功能 映射 data：{data}')
         try:
@@ -519,6 +544,49 @@ class Macro:
 
 #   --------------------------------------------------宏功能触发-------------------------------------------------
 
+    def _macro_trigger(self):
+        """
+            宏功能触发
+        """
+
+        try:
+            for data in self.macro_file:
+                if '触发键' in data and '功能类型' in data:
+                    if self.key_name == data['触发键'] and data['功能类型'] not in ['组合', '映射']:
+                        function = self.function_mapping_down.get(
+                            data['功能类型'],
+                            lambda _: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                        )
+                        Thread(target=function, args=(data,)).start()
+
+                    elif self.key_name == data['触发键'] and data['功能类型'] in ['组合', '映射']:
+                        if data['辅助1'] in self.down_state_keys:
+                            auxiliary = '辅助1'
+                            auxiliary_n = '辅助2'
+                            mapping = '映射1'
+                            mapping_n = '映射2'
+
+                        elif data['辅助2'] in self.down_state_keys:
+                            auxiliary = '辅助2'
+                            auxiliary_n = '辅助1'
+                            mapping = '映射2'
+                            mapping_n = '映射1'
+                        else:
+                            self.logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失，当前数据：{data}')
+                            return False
+                        function = self.function_mapping_down.get(
+                            data['功能类型'],
+                            lambda _, __: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                        )
+                        if data['功能类型'] == '组合':
+                            args = (data[auxiliary], data[auxiliary_n])
+                        else:
+                            args = (data[auxiliary], data[auxiliary_n], data[mapping], data[mapping_n])
+                        Thread(target=function, args=(data, args)).start()
+        except Exception as e:
+            self.logger.error(f'功能 {data["功能类型"]} 报错信息：{e}')
+            return False
+
     def _hook_all_down(self, event: KeyEvent | MouseEvent):
         """
             所有键按下事件
@@ -531,21 +599,27 @@ class Macro:
             self.key_name = event.button
         print(self.key_name)
 
-        # 主开关切换
-        if self.key_name == self.main_switch_key and self.macro_file:
-            self.main_switch = not self.main_switch
-            # 检查是否需要更改鼠标图标
-            if self.main_switch and self.macro_file[0].get('鼠标图标更改', '否') == '是':
+        # 宏开关切换
+        if self.key_name == self.macro_switch_key and self.macro_file:
+            self.macro_switch = not self.macro_switch
+            self.logger.info(f'宏开关切换：{self.macro_switch}')
+
+            # 宏开关切换时检查是否需要更改鼠标图标
+            if self.macro_switch and self.macro_file[0].get('鼠标图标更改', '否') == '是':
                     self.set_mouse_icon()
             else:
                 self.restore_mouse_icon()
 
-        # 主开关开启时
-        if self.main_switch:
-            if self.key_name in self.down_state_keys:
-                return False
+            # 宏开关切换时检查是否需要禁用编辑器
+            if self.macro_switch and self.api:
+                self.api.disable_json_editor()
             else:
+                self.api.enable_json_editor()
+
+        # 宏功能触发
+        if self.macro_switch and self.key_name not in self.down_state_keys:
                 self.down_state_keys.append(self.key_name)
+                self._macro_trigger()
 
         return False
 
@@ -562,9 +636,22 @@ class Macro:
             self.key_name = event.button
         print(self.key_name)
 
-        if self.key_name in self.down_state_keys:
+        # 宏功能触发
+        if self.macro_switch and self.key_name in self.down_state_keys:
             self.down_state_keys.remove(self.key_name)
-        if not self.main_switch:
+
+            for data in self.macro_file:
+                if '触发键' in data and '功能类型' in data:
+                    if self.key_name == data['触发键'] and data['功能类型'] == '跟随':
+                        function = self.function_mapping_up.get(
+                            data['功能类型'],
+                            lambda: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                        )
+                        Thread(target=function, args=(data,)).start()
+
+
+        # 宏开关关闭时清空所有按键记录
+        if not self.macro_switch:
             self.down_state_keys.clear()
 
         return False
