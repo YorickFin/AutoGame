@@ -2,17 +2,16 @@ import time
 import ctypes
 from pathlib import Path
 from threading import Thread
-from autoxkit import (HookListener, HotkeyListener, MouseEvent, KeyEvent,
+from autoxkit import (HookListener, MouseEvent, KeyEvent,
                     Mouse, KeyBoard, MatchColor, MatchImage,
-                     Hex_Key_Code, Hex_Mouse_Code, Hex_Hook_Code)
+                    Hex_Key_Code)
 
-from src.ocr import ocr
-
-HKC, HMC, HHC = Hex_Key_Code, Hex_Mouse_Code, Hex_Hook_Code
+HKC = Hex_Key_Code
 
 class Macro:
-    def __init__(self, logger):
+    def __init__(self, logger, ocr):
         self.logger = logger
+        self.ocr = ocr
 
         self.main_switch = False
         self.main_switch_key = None
@@ -62,6 +61,31 @@ class Macro:
         self.hook_listener.stop()
 
 
+#   -------------------------------------------------鼠标图标管理-------------------------------------------------
+
+    def set_mouse_icon(self):
+        """
+            设置鼠标图标
+        """
+        mouse_icon_path = Path(r'data\config\CursorNormal.cur')
+        try:
+            if mouse_icon_path.exists():
+                cursor = ctypes.windll.user32.LoadCursorFromFileW(str(mouse_icon_path))
+                ctypes.windll.user32.SetSystemCursor(cursor, 32512)
+                self.logger.info('设置鼠标图标')
+        except Exception as e:
+            self.logger.error(f'设置鼠标图标失败: {e}')
+
+    def restore_mouse_icon(self):
+        """
+            恢复鼠标图标
+        """
+        try:
+            ctypes.windll.user32.SystemParametersInfoW(0x0057, 0, None, 0)
+            self.logger.info('恢复鼠标图标')
+        except Exception as e:
+            self.logger.error(f'恢复鼠标图标失败: {e}')
+
 #   --------------------------------------------------类属性设置-------------------------------------------------
 
     def set_macro_file(self, macro_file: dict):
@@ -71,15 +95,6 @@ class Macro:
             macro_file (dict): 宏文件内容字典
         """
         self.macro_file = macro_file
-        print(self.macro_file)
-
-    def set_main_switch(self, switch: bool):
-        """
-            设置主开关
-        Args:
-            switch (bool): True为开启，False为关闭
-        """
-        self.main_switch = switch
 
     def set_main_switch_key(self, key: str):
         """
@@ -87,6 +102,7 @@ class Macro:
         Args:
             key (str): 主开关按键
         """
+        print(key)
         self.main_switch_key = key
 
     def get_key_name(self):
@@ -124,6 +140,7 @@ class Macro:
         screen_width = user32.GetSystemMetrics(0)
         screen_height = user32.GetSystemMetrics(1)
         return screen_width, screen_height
+
 
 #   --------------------------------------------------宏指令执行-------------------------------------------------
 
@@ -514,6 +531,16 @@ class Macro:
             self.key_name = event.button
         print(self.key_name)
 
+        # 主开关切换
+        if self.key_name == self.main_switch_key and self.macro_file:
+            self.main_switch = not self.main_switch
+            # 检查是否需要更改鼠标图标
+            if self.main_switch and self.macro_file[0].get('鼠标图标更改', '否') == '是':
+                    self.set_mouse_icon()
+            else:
+                self.restore_mouse_icon()
+
+        # 主开关开启时
         if self.main_switch:
             if self.key_name in self.down_state_keys:
                 return False

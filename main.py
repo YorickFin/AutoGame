@@ -7,6 +7,7 @@ from threading import Thread
 from PIL import Image
 import pystray
 from src.api import Api
+from src.ocr import ocr
 from src.macro import Macro
 from src.file_manager import FileManager
 
@@ -95,7 +96,7 @@ def setup_logging():
 class AutoGameApp:
     def __init__(self):
         self.logger = setup_logging()
-        self.macro = Macro(self.logger)
+        self.macro = Macro(self.logger, ocr)
         self.file_manager = FileManager(self.logger, self.macro)
         self.file_manager.set_memory_handler(memory_handler)
         self.api = Api(self.logger, self.file_manager, self.macro)

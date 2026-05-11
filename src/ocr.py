@@ -20,15 +20,15 @@ def ocr(image: np.ndarray):
     result = model.ocr(image)
     for line in result[0]:
         if isinstance(line[0], (list, np.ndarray)):
-            # 将 bounding_box 转换为 [[x1, y1], [x2, y2], [x3, y3], [x4, y4]] 格式
-            bounding_box = np.array(line[0]).reshape(4, 2).tolist()  # 转换为 4x2 列表
+            # 将 bbox 转换为 [[x1, y1], [x2, y2], [x3, y3], [x4, y4]] 格式
+            bbox = np.array(line[0]).reshape(4, 2).tolist()  # 转换为 4x2 列表
         else:
-            bounding_box = []
+            bbox = []
         ocr_results.append({
             "text": line[1][0],  # 识别文本
             "confidence": float(line[1][1]),  # 置信度
-            "bounding_box": bounding_box,  # 文本框坐标
-            "center": np.mean(bounding_box, axis=0).tolist()  # 文本框中心坐标
+            "bbox": bbox,  # 文本框坐标
+            "center": np.mean(bbox, axis=0).tolist()  # 文本框中心坐标
         })
     return ocr_results
 
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     for line in ocr_results:
         print(line['text'])
         print(line['confidence'])
-        print(line['bounding_box'])
+        print(line['bbox'])
         print(line['center'])
         print("\n")
 
