@@ -83,6 +83,7 @@ function onKeyNameFocus() {
 }
 
 function onKeyNameBlur() {
+  stopKeyNameListening()
 }
 
 const editorRef = ref<HTMLDivElement | null>(null)
@@ -313,6 +314,7 @@ function handleMouseClickStop(_e: MouseEvent) {
 }
 
 function handleWindowBlur() {
+  stopKeyNameListening()
   stopMousePositionListening()
   stopPixelColorListening()
 }

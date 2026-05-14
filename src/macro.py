@@ -743,11 +743,11 @@ class Macro:
         """
         self.logger.info(f'功能 图像匹配 data：{data}')
         try:
-            target_image = data.get("图像名称", None)
-            if not target_image:
+            target_image_path = data.get("图像名称", None)
+            if not target_image_path:
                 self.logger.error(f'功能 图像匹配 错误信息：图像名称缺失，当前数据：{data}')
                 return
-            if not target_image.exists():
+            if not target_image_path.exists():
                 self.logger.error(f'功能 图像匹配 错误信息：图像文件不存在，当前数据：{data}')
                 return
 
@@ -761,10 +761,10 @@ class Macro:
                 rect = tuple(map(int, data.get('匹配范围', f"0 0 {screen_width} {screen_height}").strip().split()))
 
             if self.macro_window:
-                target_image = self.macro_window.read_image()
+                target_image = self.macro_window.load_image(target_image_path)
                 (x, y), sim = self.macro_window.match_image(target_image, rect, similarity)
             else:
-                target_image = self.match_image.read_image(target_image)
+                target_image = self.match_image.load_image(target_image_path)
                 (x, y), sim = self.match_image.match(target_image, rect, similarity)
             if sim >= similarity and '分支Y' in data:
                 if data.get('定位目标') == '是':
@@ -882,33 +882,38 @@ class Macro:
             return False
 
     def _switch_toggle(self):
-        # 是否需要更改鼠标图标
-        if self.macro_switch and self.macro_file[0].get('鼠标图标更改', '否') == '是':
+        """
+            宏开关切换触发
+        """
+
+        if self.macro_switch:
+            # 连接到窗口
+            if self.macro_file[0]['窗口标题'] or self.macro_file[0]['窗口类名']:
+                try:
+                    self.macro_window = Window(
+                        title_name=self.macro_file[0]['窗口标题'],
+                        class_name=self.macro_file[0]['窗口类名']
+                    )
+                    self.logger.info(f'连接窗口 成功 句柄信息：{self.macro_window.hwnd}')
+                except Exception as e:
+                    self.logger.error(f'连接窗口 报错信息：{e}')
+                    self.macro_window = None
+                    self.macro_switch = None
+                    return False
+
+            # 设置鼠标图标
+            if self.macro_file[0].get('鼠标图标更改', '否') == '是':
                 self.set_mouse_icon()
-        else:
-            self.restore_mouse_icon()
 
-        # 是否需要禁用编辑器并保存文件
-        if self.macro_switch and self.api:
-            self.api.disable_json_editor()
-            self.api.save_json_file()
+            # 禁用编辑器并保存文件
+            if self.api:
+                self.api.disable_json_editor()
+                self.api.save_json_file()
         else:
-            self.api.enable_json_editor()
-
-        # 是否需要连接到窗口
-        if self.macro_switch and (self.macro_file[0]['窗口标题'] or self.macro_file[0]['窗口类名']):
-            try:
-                self.macro_window = Window(
-                    title_name=self.macro_file[0]['窗口标题'],
-                    class_name=self.macro_file[0]['窗口类名']
-                )
-                self.logger.info(f'连接窗口 成功 句柄信息：{self.macro_window.hwnd}')
-            except Exception as e:
-                self.logger.error(f'连接窗口 报错信息：{e}')
-                self.macro_window = None
-                return False
-        else:
-            self.macro_window = None
+            self.restore_mouse_icon()               # 恢复鼠标图标
+            self.api.enable_json_editor()           # 启用编辑器
+            self.macro_window = None                # 清除窗口对象
+            self.match_image.clear_cache_images()   # 清除缓存图像
 
     def _hook_all_down(self, event: KeyEvent | MouseEvent):
         """
@@ -975,6 +980,3 @@ class Macro:
         self.stop()
 
 
-if __name__ == '__main__':
-    macro = Macro(None)
-    macro.hook_listener.wait()

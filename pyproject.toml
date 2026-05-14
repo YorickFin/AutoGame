@@ -11,7 +11,7 @@ authors = [
 ]
 
 dependencies = [
-    "autoxkit>=1.1.4",
+    "autoxkit>=1.1.5",
     "numpy<2.0.0",
     "onnxruntime-gpu==1.14.1",
     "opencv-contrib-python==4.7.0.72",

@@ -28,6 +28,9 @@ class AutoGameApp:
         self.tray = None
 
     def get_adaptive_window_size(self):
+        """
+        获取自适应窗口大小，根据屏幕分辨率调整。
+        """
         screen_width, screen_height = self.macro.get_screen_size()
 
         scale_factor = (screen_width - 1920) * (0.2 / 640)
@@ -43,7 +46,10 @@ class AutoGameApp:
         return win_width, win_height, pos_x, pos_y
 
     def _get_index_path(self):
-        # 先检查打包环境的路径
+        """
+        获取HTML文件的路径，先检查打包环境的路径，若不存在则返回开发环境的路径。
+        """
+        # 检查打包环境的路径
         if self.path_manager.is_frozen():
             index_path = self.path_manager.index_html_path
             if index_path.exists():
@@ -54,6 +60,9 @@ class AutoGameApp:
         return 'http://localhost:5173'
 
     def _create_window(self):
+        """
+        创建主窗口。
+        """
         win_width, win_height, pos_x, pos_y = self.get_adaptive_window_size()
         index_path = self._get_index_path()
 
@@ -72,15 +81,24 @@ class AutoGameApp:
         self.window.events.closed += self.on_window_closed
 
     def on_window_closed(self):
+        """
+        窗口关闭事件处理。
+        """
         if self.tray:
             self.tray.visible = False
             self.tray.stop()
 
     def show_window(self):
+        """
+        显示主窗口。
+        """
         if self.window:
             self.window.show()
 
     def exit_app(self):
+        """
+        退出应用。
+        """
         if self.window:
             self.window.destroy()
         if self.tray:
@@ -91,6 +109,9 @@ class AutoGameApp:
             self.macro.stop()
 
     def _create_tray(self):
+        """
+        创建系统托盘图标。
+        """
         icon_path = self.path_manager.logo_tray_path
         image = Image.open(icon_path)
 
@@ -105,10 +126,16 @@ class AutoGameApp:
         self.tray = pystray.Icon('AutoGame', image, 'AutoGame', menu)
 
     def run_tray(self):
+        """
+        运行系统托盘图标。
+        """
         self._create_tray()
         self.tray.run()
 
     def run(self):
+        """
+        运行应用。
+        """
         self._create_window()
         Thread(target=self.run_tray).start()
         Thread(target=self.macro.start).start()
