@@ -4,7 +4,7 @@ import numpy as np
 from threading import Thread
 from autoxkit.window import Window
 from autoxkit.mousekey import Mouse, KeyBoard
-from autoxkit.icmatch import MatchColor, MatchImage
+from autoxkit.match import Match
 from autoxkit.constants import Hex_Key_Code
 from autoxkit.hook import HookListener, HotkeyListener, MouseEvent, KeyEvent
 
@@ -60,10 +60,9 @@ class Macro:
         }
         self.function_names = ['固定连击', '宏', '截图', '追踪', '图像匹配', '颜色匹配', '文字识别']
 
+        self.match = Match()
         self.mouse = Mouse()
         self.keyboard = KeyBoard()
-        self.match_color = MatchColor()
-        self.match_image = MatchImage()
 
         self.hook_listener = HookListener()
         self.hook_listener.add_handler('keydown', self._hook_all_down)
@@ -164,7 +163,7 @@ class Macro:
             tuple: 像素颜色元组
         """
         x, y = self.get_mouse_position()
-        return self.match_color.get_pixel_color(x, y, is_return_hex=True)
+        return self.match.get_pixel_color(x, y, is_return_hex=True)
 
     def get_screen_size(self):
         """
@@ -582,7 +581,7 @@ class Macro:
             else:
                 screen_width, screen_height = self.get_screen_size()
                 rect = tuple(map(int, data.get('截图范围', f"0 0 {screen_width} {screen_height}").strip().split()))
-                self.match_image.screenshot(rect=rect, save_path=f'data\\target_image\\{image_name}.png')
+                self.match.screenshot(rect=rect, save_path=f'data\\target_image\\{image_name}.png')
         except Exception as e:
             self.logger.error(f'功能 截图 报错信息：{e}')
             raise e
@@ -640,7 +639,7 @@ class Macro:
                 if self.macro_window:
                     np_colors = self.macro_window.screenshot(rect=rect)
                 else:
-                    np_colors = self.match_image.screenshot(rect=rect)
+                    np_colors = self.match.screenshot(rect=rect)
 
                 # 统一形状为 (1, n, 3) 并获取像素一维数组
                 np_colors = np_colors.reshape(1, -1, 3)
@@ -720,7 +719,7 @@ class Macro:
                 if self.macro_window:
                     result, sim = self.macro_window.match_color(coord, color, similarity)
                 else:
-                    result, sim = self.match_color.match(coord, color, similarity)
+                    result, sim = self.match.match_color(coord, color, similarity)
                 flag = result
                 if flag and pattern == 'any':
                     break
@@ -764,8 +763,8 @@ class Macro:
                 target_image = self.macro_window.load_image(target_image_path)
                 (x, y), sim = self.macro_window.match_image(target_image, rect, similarity)
             else:
-                target_image = self.match_image.load_image(target_image_path)
-                (x, y), sim = self.match_image.match(target_image, rect, similarity)
+                target_image = self.match.load_image(target_image_path)
+                (x, y), sim = self.match.match_image(target_image, rect, similarity)
             if sim >= similarity and '分支Y' in data:
                 if data.get('定位目标') == '是':
                     self.execute_macro(f'移动 {int(x)} {int(y)}', key_mouse_mode)
@@ -802,7 +801,7 @@ class Macro:
             else:
                 screen_width, screen_height = self.get_screen_size()
                 rect = tuple(map(int, data.get('匹配范围', f"0 0 {screen_width} {screen_height}").strip().split()))
-                target_image = self.match_image.screenshot(rect=rect)
+                target_image = self.match.screenshot(rect=rect)
 
             ocr_result = self.ocr(target_image)
 
@@ -913,7 +912,7 @@ class Macro:
             self.restore_mouse_icon()               # 恢复鼠标图标
             self.api.enable_json_editor()           # 启用编辑器
             self.macro_window = None                # 清除窗口对象
-            self.match_image.clear_cache_images()   # 清除缓存图像
+            self.match.clear_cache_images()         # 清除缓存图像
 
     def _hook_all_down(self, event: KeyEvent | MouseEvent):
         """

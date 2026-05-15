@@ -260,7 +260,7 @@ AutoGame/
 | 触发键  | string | 至少存在一种 | 触发该宏的按键                                           |
 | 名称   | string | 至少存在一种 | 可供其他功能调用                                          |
 | 文件名称 | string | 否      | 截图保存在 `data\target_image` 文件夹下，默认名称为 `screenshot` |
-| 截图范围 | string | 否      | 格式为 "x1 y1 x2 y2"，默认为全屏                           |
+| 截图范围 | string | 否      | 格式为 "x1 y1 x2 y2"，默认为全屏或全窗口                           |
 
 ### 追踪
 
