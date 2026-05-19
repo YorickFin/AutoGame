@@ -462,7 +462,7 @@ let videoDecoder: VideoDecoder | null = null
 let audioContext: AudioContext | null = null
 let audioScheduleEnd: number = 0
 const MAX_AUDIO_SCHEDULE_HEAD = 0.15  // 150ms max schedule ahead
-const AUDIO_SCHEDULE_OFFSET = 0.01  // 10ms minimum lookahead
+const AUDIO_SCHEDULE_OFFSET = 0.005  // 10ms minimum lookahead
 let videoConfigured = false
 let pollTimer = 0
 let fpsTimer = 0
@@ -486,10 +486,7 @@ async function callApi(method: string, ...args: any[]): Promise<any> {
 }
 
 function base64ToBytes(payload: string) {
-  const raw = atob(payload)
-  const bytes = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
-  return bytes
+  return Uint8Array.from(atob(payload), c => c.charCodeAt(0))
 }
 
 // ------------------------------------------------------------------ #
@@ -559,7 +556,7 @@ function startPolling() {
     } catch {
       // ignore
     }
-  }, 24)
+  }, 16)
 }
 
 function stopPolling() {
