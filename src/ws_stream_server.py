@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import struct
 from typing import Any
 
 import websockets
@@ -25,7 +26,7 @@ class WsStreamServer:
         self._loop = loop
         self._last_session_event: str | None = None
         self._session_cached: asyncio.Event = asyncio.Event()
-        self._cached_keyframe_meta: str | None = None
+        self._cached_keyframe_meta: bytes | None = None
         self._cached_keyframe_data: bytes | None = None
         self._keyframe_cached: asyncio.Event = asyncio.Event()
         self._server: Any = None
@@ -66,6 +67,26 @@ class WsStreamServer:
             self._server = None
         logger.info("WebSocket stream server stopped")
 
+    def _build_binary_header(self, kind: str, meta: dict[str, Any] | None) -> bytes:
+        """Build a 9-byte binary header from metadata.
+
+        Format: [1B flags][8B pts LE]
+          flags bit 0: keyFrame
+          flags bit 1: is_audio (0=video, 1=audio)
+          flags bit 2: config
+        """
+        flags = 0
+        pts = 0
+        if meta:
+            if meta.get("keyFrame"):
+                flags |= 0x01
+            if kind == "audio":
+                flags |= 0x02
+            if meta.get("config"):
+                flags |= 0x04
+            pts = meta.get("pts") or 0
+        return struct.pack("<Bq", flags, pts)
+
     async def send_event(
         self,
         kind: str,
@@ -74,39 +95,43 @@ class WsStreamServer:
     ) -> None:
         """Send an event to all connected WebSocket clients.
 
-        Args:
-            kind: Event kind ("session", "video", "audio")
-            meta: Optional metadata dict (will be sent as JSON text)
-            payload: Optional binary payload (will be sent as binary message)
+        Session events: sent as JSON text (one-time metadata).
+        Video/audio events: sent as single binary message: [9B header][payload].
         """
-        # Build metadata message
         msg: dict[str, Any] = {"kind": kind}
         if meta:
             msg.update(meta)
 
         text_payload = json.dumps(msg, ensure_ascii=False)
 
-        # Cache session event for late-connecting clients (BEFORE connection check)
+        # Cache session event for late-connecting clients
         if kind == "session":
             self._last_session_event = text_payload
             self._session_cached.set()
         # Cache the first keyframe for late-connecting clients
         if kind == "video" and payload is not None and (meta or {}).get("keyFrame"):
             if self._cached_keyframe_meta is None:
-                self._cached_keyframe_meta = text_payload
+                header = self._build_binary_header(kind, meta)
+                self._cached_keyframe_meta = header
                 self._cached_keyframe_data = payload
                 self._keyframe_cached.set()
 
         if not self._connections:
             return
 
-        # Send to all connected clients
         dead: set[ServerConnection] = set()
         for ws in self._connections:
             try:
-                await ws.send(text_payload)
-                if payload is not None:
-                    await ws.send(payload)
+                if kind == "session":
+                    # Session: JSON text (one-time)
+                    await ws.send(text_payload)
+                else:
+                    # Video/audio: single binary message = header + payload
+                    header = self._build_binary_header(kind, meta)
+                    if payload is not None:
+                        await ws.send(header + payload)
+                    else:
+                        await ws.send(header)
             except Exception:
                 dead.add(ws)
 
@@ -134,8 +159,7 @@ class WsStreamServer:
                 pass
         if self._cached_keyframe_meta is not None and self._cached_keyframe_data is not None:
             try:
-                await websocket.send(self._cached_keyframe_meta)
-                await websocket.send(self._cached_keyframe_data)
+                await websocket.send(self._cached_keyframe_meta + self._cached_keyframe_data)
             except Exception:
                 pass
         try:

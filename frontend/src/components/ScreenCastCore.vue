@@ -85,7 +85,6 @@ const isFullscreen = ref(false)
 const showKeyMapping = ref(false)
 const isKeyMappingActive = ref(false)
 let ws: WebSocket | null = null
-let pendingMeta: { kind: string; pts?: number; keyFrame?: boolean; config?: boolean } | null = null
 let wsReconnectAttempts = 0
 const MAX_WS_RECONNECT = 3
 
@@ -264,27 +263,42 @@ function startWebSocket(port: number) {
     wsReconnectAttempts = 0
   }
 
-  ws.onmessage = (event: MessageEvent) => {
+  ws.onmessage = async (event: MessageEvent) => {
     if (typeof event.data === "string") {
       const meta = JSON.parse(event.data)
       if (meta.kind === "session") {
         session.value = { width: meta.width || 0, height: meta.height || 0 }
         resizeCanvas()
-        pendingMeta = null
-      } else {
-        pendingMeta = meta
       }
     } else {
-      if (!pendingMeta) return
-      const { kind, pts, keyFrame, config } = pendingMeta
-      const data = new Uint8Array(event.data as ArrayBuffer)
-      if (kind === "video") {
+      let bytes: Uint8Array
+      if (event.data instanceof Blob) {
+        bytes = new Uint8Array(await event.data.arrayBuffer())
+      } else {
+        bytes = new Uint8Array(event.data as ArrayBuffer)
+      }
+      if (bytes.length < 9) return
+      const flags = bytes[0]
+      const keyFrame = !!(flags & 0x01)
+      const isAudio = !!(flags & 0x02)
+      const config = !!(flags & 0x04)
+      const pts = Number(
+        (BigInt(bytes[1]) << 0n) |
+        (BigInt(bytes[2]) << 8n) |
+        (BigInt(bytes[3]) << 16n) |
+        (BigInt(bytes[4]) << 24n) |
+        (BigInt(bytes[5]) << 32n) |
+        (BigInt(bytes[6]) << 40n) |
+        (BigInt(bytes[7]) << 48n) |
+        (BigInt(bytes[8]) << 56n)
+      )
+      const data = bytes.subarray(9)
+      if (isAudio) {
+        playAudioBytes(data)
+      } else {
         framesThisSecond++
         decodeVideoBytes(data, { pts, keyFrame, config })
-      } else if (kind === "audio") {
-        playAudioBytes(data)
       }
-      pendingMeta = null
     }
   }
 
@@ -311,7 +325,6 @@ function closeWebSocket() {
     ws.close()
     ws = null
   }
-  pendingMeta = null
   wsReconnectAttempts = 0
 }
 
@@ -355,6 +368,8 @@ function decodeVideoBytes(data: Uint8Array, meta: { pts?: number | null; keyFram
   }
   // Skip config-only events (SPS/PPS without a video frame)
   if (meta.config && !meta.keyFrame) return
+  // Adaptive: skip delta frames when decode queue is backed up
+  if (!meta.keyFrame && videoDecoder.decodeQueueSize > 3) return
   // Accept all frames once configured
   const chunk = new EncodedVideoChunk({
     type: meta.keyFrame ? "key" : "delta",
