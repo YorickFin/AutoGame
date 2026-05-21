@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import queue
 import threading
 from pathlib import Path
 from typing import Any
 
+from .ws_stream_server import WsStreamServer
 from autoxkit.android.adb import AdbServerLauncher
 from autoxkit.android import AudioVideoEvent, ScrcpyClient, ScrcpyOptions, StreamKind
 from autoxkit.android.control import PointerManager, ACTION_DOWN
@@ -139,7 +138,7 @@ class ScrcpyManager:
         self._thread.start()
         self._client: ScrcpyClient | None = None
         self._pump_task: asyncio.Task[None] | None = None
-        self._events: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=480)
+        self._ws_server: WsStreamServer | None = None
         self._last_session: tuple[int, int] | None = None
         self._launcher: AdbServerLauncher | None = None
         self._address: str | None = None
@@ -167,15 +166,29 @@ class ScrcpyManager:
             "deviceName": self._client.device_meta.device_name if self._client.device_meta else None,
         }
 
-    def poll_events(self, limit: int = 60) -> list[dict[str, Any]]:
-        """Poll events from the internal queue."""
-        items: list[dict[str, Any]] = []
-        for _ in range(max(1, min(limit, 240))):
-            try:
-                items.append(self._events.get_nowait())
-            except queue.Empty:
-                break
-        return items
+    def get_ws_port(self) -> int:
+        """Return the WebSocket stream server port, or -1 if not running."""
+        if self._ws_server is not None:
+            return self._ws_server.port
+        return -1
+
+    def start_ws_stream(self) -> int:
+        """Start the WebSocket stream server. Returns the port number."""
+        return self._submit(self._start_ws_stream())
+
+    def stop_ws_stream(self) -> None:
+        """Stop the WebSocket stream server."""
+        return self._submit(self._stop_ws_stream())
+
+    async def _start_ws_stream(self) -> int:
+        self._ws_server = WsStreamServer(self._loop)
+        port = await self._ws_server.start()
+        return port
+
+    async def _stop_ws_stream(self) -> None:
+        if self._ws_server is not None:
+            await self._ws_server.stop()
+            self._ws_server = None
 
     def send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
         return self._submit(self._send_touch(action, x, y, width, height))
@@ -263,6 +276,7 @@ class ScrcpyManager:
         self._client = client
         if client is not None and client.control is not None:
             client.control.pointer_manager = self._pointer_manager
+        await self._start_ws_stream()
         self._pump_task = asyncio.create_task(self._pump_events(client))
         return self._make_status()
 
@@ -274,7 +288,6 @@ class ScrcpyManager:
             await self._client.stop()
             self._client = None
         self._last_session = None
-        self._clear_queue()
         return {"running": False}
 
     async def _send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
@@ -389,58 +402,39 @@ class ScrcpyManager:
     async def _pump_events(self, client: ScrcpyClient) -> None:
         try:
             async for event in client.av.events():
-                self._put_event(self._serialize_event(event))
+                await self._forward_to_ws(event)
         except asyncio.CancelledError:
             pass
         except Exception:
             pass
 
-    def _serialize_event(self, event: AudioVideoEvent) -> dict[str, Any]:
+    async def _forward_to_ws(self, event: AudioVideoEvent) -> None:
+        """Forward an AudioVideoEvent to the WebSocket stream server."""
+        if self._ws_server is None:
+            return
+
         codec = event.codec.label if event.codec else None
+
         if event.kind is StreamKind.SESSION and event.session is not None:
             self._last_session = (event.session.width, event.session.height)
-            return {
-                "kind": "session",
+            await self._ws_server.send_event("session", {
                 "codec": codec,
                 "width": event.session.width,
                 "height": event.session.height,
                 "clientResized": event.session.client_resized,
-            }
-        return {
-            "kind": event.kind.value,
-            "codec": codec,
-            "pts": event.pts,
-            "config": event.config,
-            "keyFrame": event.key_frame,
-            "payload": base64.b64encode(event.payload).decode("ascii"),
-        }
-
-    # ------------------------------------------------------------------ #
-    # Queue helpers
-    # ------------------------------------------------------------------ #
-
-    def _put_event(self, item: dict[str, Any]) -> None:
-        """Put an event into the queue, dropping the oldest item if full.
-
-        When the queue is full, drops the oldest queued event (FIFO drop)
-        to make room for the new one, ensuring fresh events are always processed.
-        """
-        try:
-            self._events.put_nowait(item)
-        except queue.Full:
-            # Queue full - drop the oldest event to make room
-            try:
-                self._events.get_nowait()
-            except queue.Empty:
-                pass
-            self._events.put_nowait(item)
-
-    def _clear_queue(self) -> None:
-        while True:
-            try:
-                self._events.get_nowait()
-            except queue.Empty:
-                return
+            })
+        elif event.kind is StreamKind.VIDEO and event.payload:
+            await self._ws_server.send_event(
+                "video",
+                {"pts": event.pts, "keyFrame": event.key_frame, "config": event.config},
+                event.payload,
+            )
+        elif event.kind is StreamKind.AUDIO and event.payload:
+            await self._ws_server.send_event(
+                "audio",
+                {"pts": event.pts},
+                event.payload,
+            )
 
     def _make_status(self) -> dict[str, Any]:
         if self._client is None:

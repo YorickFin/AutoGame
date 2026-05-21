@@ -8,8 +8,7 @@
         "quality": "1080",
         "bitrate": 10,
         "fpsLimit": 120,
-        "aspectRatio": "reset",
-        "showFps": true
+        "aspectRatio": "reset"
     },
     "keyMappingFile": "默认配置"
 }

@@ -989,8 +989,8 @@ class Macro:
         if self.listening_for_key:
             self.last_key_pressed = self.key_name
 
-        if not self.path_manager.is_frozen():
-            self.logger.info(f'键鼠监听器 按键按下：{self.key_name}')
+        # if not self.path_manager.is_frozen():
+        #     self.logger.info(f'键鼠监听器 按键按下：{self.key_name}')
 
         # 宏开关切换
         if self.key_name == self.macro_switch_key and self.macro_file:
@@ -1024,8 +1024,8 @@ class Macro:
         elif isinstance(event, MouseEvent):
             self.key_name = event.button
 
-        if not self.path_manager.is_frozen():
-            self.logger.info(f'键鼠监听器 按键弹起：{self.key_name}')
+        # if not self.path_manager.is_frozen():
+        #     self.logger.info(f'键鼠监听器 按键弹起：{self.key_name}')
 
         # 按键映射执行器弹起事件 (scrcpy 触摸释放)
         # 异常保护：避免钩子线程因按键映射执行器崩溃而全局失效

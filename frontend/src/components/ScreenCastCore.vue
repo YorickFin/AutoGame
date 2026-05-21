@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onBeforeUnmount, nextTick, type Ref } from "vue"
-import { callApi, base64ToBytes } from "../composables/useScreencastApi"
+import { callApi } from "../composables/useScreencastApi"
 import ScreenCastToolbar from "./ScreenCastToolbar.vue"
 import ScreenCastKeyMapping from "./ScreenCastKeyMapping.vue"
 import "./ScreenCastCore.css"
@@ -84,6 +84,10 @@ const hoveredButtons = ref<Record<string, string>>({})
 const isFullscreen = ref(false)
 const showKeyMapping = ref(false)
 const isKeyMappingActive = ref(false)
+let ws: WebSocket | null = null
+let pendingMeta: { kind: string; pts?: number; keyFrame?: boolean; config?: boolean } | null = null
+let wsReconnectAttempts = 0
+const MAX_WS_RECONNECT = 3
 
 const screenStyle = computed((): Record<string, string> => {
   if (!session.value.width || !session.value.height) return {} as Record<string, string>
@@ -172,7 +176,6 @@ let audioScheduleEnd: number = 0
 const MAX_AUDIO_SCHEDULE_HEAD = 0.15
 const AUDIO_SCHEDULE_OFFSET = 0.005
 let videoConfigured = false
-let pollTimer = 0
 let fpsTimer = 0
 let framesThisSecond = 0
 let resizeObserver: ResizeObserver | null = null
@@ -227,7 +230,10 @@ async function startConnection() {
     status.value = await callApi("scrcpy_start", resolvedSerial || null, scConfig)
     if (status.value.running) {
       statusText.value = `Connected to ${status.value.deviceName || "device"}`
-      startPolling()
+      const wsPort = await callApi("scrcpy_get_ws_port")
+      if (wsPort > 0) {
+        startWebSocket(wsPort)
+      }
       await initKeyMappingBackground()
     } else {
       statusText.value = status.value.error || "Connection failed"
@@ -238,7 +244,7 @@ async function startConnection() {
 }
 
 async function stopConnection() {
-  stopPolling()
+  closeWebSocket()
   closeDecoders()
   try {
     await callApi("scrcpy_stop")
@@ -248,60 +254,73 @@ async function stopConnection() {
   status.value = { running: false }
 }
 
-function startPolling() {
-  stopPolling()
-  pollTimer = window.setInterval(async () => {
-    if (!status.value.running) return
-    try {
-      const events = await callApi("scrcpy_poll_events", 40)
-      for (const event of events) handleEvent(event)
-    } catch {
-      // ignore
+function startWebSocket(port: number) {
+  closeWebSocket()
+  wsReconnectAttempts = 0
+  ws = new WebSocket(`ws://localhost:${port}`)
+  ws.binaryType = "arraybuffer"
+
+  ws.onopen = () => {
+    wsReconnectAttempts = 0
+  }
+
+  ws.onmessage = (event: MessageEvent) => {
+    if (typeof event.data === "string") {
+      const meta = JSON.parse(event.data)
+      if (meta.kind === "session") {
+        session.value = { width: meta.width || 0, height: meta.height || 0 }
+        resizeCanvas()
+        pendingMeta = null
+      } else {
+        pendingMeta = meta
+      }
+    } else {
+      if (!pendingMeta) return
+      const { kind, pts, keyFrame, config } = pendingMeta
+      const data = new Uint8Array(event.data as ArrayBuffer)
+      if (kind === "video") {
+        framesThisSecond++
+        decodeVideoBytes(data, { pts, keyFrame, config })
+      } else if (kind === "audio") {
+        playAudioBytes(data)
+      }
+      pendingMeta = null
     }
-  }, 16)
-}
+  }
 
-function stopPolling() {
-  if (pollTimer) {
-    window.clearInterval(pollTimer)
-    pollTimer = 0
+  ws.onclose = () => {
+    ws = null
+    if (wsReconnectAttempts < MAX_WS_RECONNECT) {
+      wsReconnectAttempts++
+      setTimeout(() => {
+        if (status.value.running) startWebSocket(port)
+      }, 1000)
+    } else {
+      statusText.value = "WebSocket disconnected"
+    }
+  }
+
+  ws.onerror = () => {
+    ws?.close()
   }
 }
 
-type StreamEvent = {
-  kind: "session" | "video" | "audio" | "error"
-  codec?: string | null
-  width?: number
-  height?: number
-  pts?: number | null
-  config?: boolean
-  keyFrame?: boolean
-  payload?: string
-  message?: string
-  clientResized?: boolean
+function closeWebSocket() {
+  if (ws) {
+    ws.onclose = null
+    ws.close()
+    ws = null
+  }
+  pendingMeta = null
+  wsReconnectAttempts = 0
 }
 
-function handleEvent(event: StreamEvent) {
-  if (event.kind === "session") {
-    session.value = { width: event.width || 0, height: event.height || 0 }
-    resizeCanvas()
+
+
+function decodeVideoBytes(data: Uint8Array, meta: { pts?: number | null; keyFrame?: boolean; config?: boolean }) {
+  if (!("VideoDecoder" in window)) {
     return
   }
-  if (event.kind === "video" && event.payload) {
-    framesThisSecond++
-    decodeVideo(event)
-    return
-  }
-  if (event.kind === "audio" && event.payload) {
-    playAudio(event.payload)
-    return
-  }
-}
-
-function decodeVideo(event: StreamEvent) {
-  if (!("VideoDecoder" in window)) return
-  if (event.codec !== "h264") return
-  const data = base64ToBytes(event.payload || "")
   if (!videoDecoder) {
     videoDecoder = new VideoDecoder({
       output(frame) {
@@ -313,6 +332,7 @@ function decodeVideo(event: StreamEvent) {
         const ctx = cvs.getContext("2d")
         if (ctx) {
           ctx.drawImage(frame, 0, 0, cvs.width, cvs.height)
+        } else {
         }
         frame.close()
       },
@@ -321,7 +341,11 @@ function decodeVideo(event: StreamEvent) {
       },
     })
   }
+  // Only accept key frames until decoder is configured
   if (!videoConfigured) {
+    if (!meta.keyFrame) {
+      return
+    }
     videoDecoder.configure({
       codec: "avc1.42E01E",
       optimizeForLatency: true,
@@ -329,10 +353,12 @@ function decodeVideo(event: StreamEvent) {
     } as VideoDecoderConfig)
     videoConfigured = true
   }
-  if (!event.keyFrame && !videoConfigured) return
+  // Skip config-only events (SPS/PPS without a video frame)
+  if (meta.config && !meta.keyFrame) return
+  // Accept all frames once configured
   const chunk = new EncodedVideoChunk({
-    type: event.keyFrame ? "key" : "delta",
-    timestamp: event.pts || performance.now() * 1000,
+    type: meta.keyFrame ? "key" : "delta",
+    timestamp: meta.pts || performance.now() * 1000,
     data,
   })
   try {
@@ -342,8 +368,7 @@ function decodeVideo(event: StreamEvent) {
   }
 }
 
-function playAudio(payload: string) {
-  const data = base64ToBytes(payload || "")
+function playAudioBytes(data: Uint8Array) {
   if (!data.length) return
   if (!audioContext) {
     audioContext = new AudioContext({ sampleRate: 48000 })

@@ -229,8 +229,8 @@ class Api:
     def scrcpy_status(self):
         return self.scrcpy.status()
 
-    def scrcpy_poll_events(self, limit=30):
-        return self.scrcpy.poll_events(limit)
+    def scrcpy_get_ws_port(self):
+        return self.scrcpy.get_ws_port()
 
     def scrcpy_send_touch(self, action, x, y, width, height):
         return self.scrcpy.send_touch(action, x, y, width, height)
@@ -348,8 +348,7 @@ class Api:
             'disable_json_editor', 'enable_json_editor', 'save_json_file',
             'set_screencast_ratio',
             'toggle_screencast_fullscreen',
-            'scrcpy_start', 'scrcpy_stop', 'scrcpy_status', 'scrcpy_poll_events',
-            'scrcpy_send_touch', 'scrcpy_send_keycode', 'scrcpy_set_clipboard',
+            'scrcpy_start', 'scrcpy_stop', 'scrcpy_status', 'scrcpy_get_ws_port', 'scrcpy_send_touch', 'scrcpy_send_keycode', 'scrcpy_set_clipboard',
             'scrcpy_switch_to_wireless', 'scrcpy_discover_usb_serial',
             'scrcpy_volume_up', 'scrcpy_volume_down', 'scrcpy_back',
             'scrcpy_switch_app', 'scrcpy_home',
