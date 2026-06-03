@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import re
-import subprocess
 import threading
 import time
 from autoxkit.mousekey.mouse import Mouse
@@ -34,7 +33,6 @@ class KeyMappingExecutor:
         self._camera_poll_thread = None      # 轮询线程
         self._camera_poll_stop = threading.Event()  # 停止信号
         self._camera_lock = threading.Lock() # 保护共享状态
-        self._adb_path = str(self.scrcpy.PLUGIN_DIR / "adb.exe")
         self._keyboard_shown: bool | None = None
         self._keyboard_just_hidden = False
         self._kb_poll_stop = threading.Event()
@@ -458,6 +456,13 @@ class KeyMappingExecutor:
         self._camera_poll_thread = None
         self._camera_mouse = None
 
+        # Stop keyboard polling thread
+        self._kb_poll_stop.set()
+        if self._kb_poll_thread and self._kb_poll_thread.is_alive():
+            self._kb_poll_thread.join(timeout=1.0)
+        self._kb_poll_thread = None
+        self._kb_poll_started = False
+
         self._down_state_keys.clear()
         self._dpad_states.clear()
         # Also reset camera state
@@ -493,24 +498,15 @@ class KeyMappingExecutor:
         self._kb_poll_thread = threading.Thread(target=self._keyboard_poll_loop, daemon=True)
         self._kb_poll_thread.start()
 
-
-
-    def _poll_keyboard_state(self) -> bool | None:
-        try:
-            cmd = [self._adb_path, "shell", "dumpsys", "input_method"]
-            r = subprocess.run(cmd, capture_output=True, timeout=5)
-            if r.returncode != 0:
-                return None
-            output = r.stdout.decode("utf-8", errors="replace")
-            m = re.search(r"mInputShown=(true|false)", output)
-            return m.group(1) == "true" if m else None
-        except Exception:
-            return None
-
     def _keyboard_poll_loop(self):
         while not self._kb_poll_stop.is_set():
             time.sleep(0.1)
-            shown = self._poll_keyboard_state()
+            output = self.scrcpy.adb_shell("dumpsys", "input_method")
+            shown = None
+            if output is not None:
+                m = re.search(r"mInputShown=(true|false)", output)
+                if m:
+                    shown = m.group(1) == "true"
             if shown is not None:
                 prev = self._keyboard_shown
                 self._keyboard_shown = shown

@@ -139,8 +139,7 @@ class WsStreamServer:
 
     async def _handler(self, websocket: ServerConnection) -> None:
         """Handle a new WebSocket client connection."""
-        self._connections.add(websocket)
-        logger.info("WebSocket client connected (total: %d)", len(self._connections))
+        logger.info("WebSocket client connected (total: %d)", len(self._connections) + 1)
         # Wait for session event to arrive (up to 10s) then replay
         try:
             await asyncio.wait_for(self._session_cached.wait(), timeout=10)
@@ -157,11 +156,15 @@ class WsStreamServer:
                 await websocket.send(self._last_session_event)
             except Exception:
                 pass
+        # Replay cached keyframe so client gets a frame immediately
         if self._cached_keyframe_meta is not None and self._cached_keyframe_data is not None:
             try:
                 await websocket.send(self._cached_keyframe_meta + self._cached_keyframe_data)
             except Exception:
                 pass
+        # Now add to connections — ensures client received session + keyframe
+        # before send_event starts forwarding live frames
+        self._connections.add(websocket)
         try:
             # Keep connection alive and handle incoming control messages
             async for _message in websocket:

@@ -5,7 +5,7 @@
     "screencast": {
         "videoSource": "display",
         "audioSource": "output",
-        "quality": "1080",
+        "quality": "unlimited",
         "bitrate": 10,
         "fpsLimit": 120,
         "aspectRatio": "reset"

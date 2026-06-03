@@ -1,6 +1,6 @@
 [project]
 name = "AutoGame"
-version = "3.4.1"
+version = "3.5.0"
 description = "AutoGame 是一个基于 Python 的自动化工具，支持前后台键鼠、图色、文字识别、手机投屏、按键映射等功能。"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -11,7 +11,7 @@ authors = [
 ]
 
 dependencies = [
-    "autoxkit>=2.1.1",
+    "autoxkit>=2.2.1",
     "numpy<2.0.0",
     "onnxruntime-gpu==1.14.1",
     "opencv-contrib-python==4.7.0.72",

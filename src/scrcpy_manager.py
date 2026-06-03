@@ -205,6 +205,8 @@ class ScrcpyManager:
                 server_args.append(f"video_bit_rate={bitrate * 1000000}")
             if fps_limit != "unlimited":
                 server_args.append(f"max_fps={fps_limit}")
+            # Keyframe every ~1 second to avoid long black screen on new client
+            server_args.append("i-frame-interval=1")
         if audio_enabled:
             server_args.append(f"audio_source={audio_source}")
             server_args.append("audio_codec=raw")
@@ -245,6 +247,7 @@ class ScrcpyManager:
             await self._client.stop()
             self._client = None
         self._last_session = None
+        await self._stop_ws_stream()
         return {"running": False}
 
     async def _send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
@@ -418,7 +421,25 @@ class ScrcpyManager:
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
 
+    def _ensure_launcher(self) -> AdbServerLauncher:
+        if self._launcher is None:
+            self._launcher = AdbServerLauncher(
+                adb_path=self.PLUGIN_DIR / "adb.exe",
+                server_path=self.PLUGIN_DIR / "scrcpy-server",
+                serial=self._serial,
+            )
+        return self._launcher
 
+    def adb_shell(self, *args: str) -> str | None:
+        """Run ``adb shell <args>`` via launcher and return stdout, or None on failure."""
+        return self._submit(self._adb_shell(*args))
+
+    async def _adb_shell(self, *args: str) -> str | None:
+        try:
+            launcher = self._ensure_launcher()
+            return await launcher.shell_output(*args)
+        except Exception:
+            return None
 
     # Key mapping: send events via scrcpy control stream
 
@@ -535,27 +556,16 @@ class ScrcpyManager:
     def reset_screen_ratio(self) -> dict:
         return self._submit(self._reset_screen_ratio())
 
-    def _ensure_launcher(self) -> AdbServerLauncher:
-        if self._launcher is None:
-            self._launcher = AdbServerLauncher(
-                adb_path=self.PLUGIN_DIR / "adb.exe",
-                server_path=self.PLUGIN_DIR / "scrcpy-server",
-                serial=self._serial,
-            )
-        return self._launcher
-
     async def _get_device_screen_size_via_adb(self):
-        launcher = self._ensure_launcher()
-        try:
-            output = await launcher.shell_output("wm", "size")
-            for line in output.splitlines():
-                if "Physical size:" in line or "Override size:" in line:
-                    size_str = line.split(":", 1)[-1].strip()
-                    w_str, h_str = size_str.split("x", 1)
-                    return int(w_str.strip()), int(h_str.strip())
+        output = await self._adb_shell("wm", "size")
+        if output is None:
             return None
-        except Exception:
-            return None
+        for line in output.splitlines():
+            if "Physical size:" in line or "Override size:" in line:
+                size_str = line.split(":", 1)[-1].strip()
+                w_str, h_str = size_str.split("x", 1)
+                return int(w_str.strip()), int(h_str.strip())
+        return None
 
     async def _set_screen_ratio(self, width_ratio, height_ratio):
         if self._last_session:
@@ -573,23 +583,18 @@ class ScrcpyManager:
             w = max(device_w, device_h)
             h = w * height_ratio // width_ratio
 
-        launcher = self._ensure_launcher()
-        try:
-            output = await launcher.shell_output("wm", "size", f"{h}x{w}")
-            return {
-                "ok": True,
-                "output": output.strip(),
-                "size": f"{h}x{w}",
-                "ratio": f"{width_ratio}:{height_ratio}",
-            }
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
+        output = await self._adb_shell("wm", "size", f"{h}x{w}")
+        if output is None:
+            return {"ok": False, "error": "adb shell failed"}
+        return {
+            "ok": True,
+            "output": output.strip(),
+            "size": f"{h}x{w}",
+            "ratio": f"{width_ratio}:{height_ratio}",
+        }
 
     async def _reset_screen_ratio(self):
-        launcher = self._ensure_launcher()
-        try:
-            output = await launcher.shell_output("wm", "size", "reset")
-            return {"ok": True, "output": output.strip()}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
-
+        output = await self._adb_shell("wm", "size", "reset")
+        if output is None:
+            return {"ok": False, "error": "adb shell failed"}
+        return {"ok": True, "output": output.strip()}
