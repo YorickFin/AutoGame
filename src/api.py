@@ -27,6 +27,14 @@ class Api:
         self.macro.set_macro_switch_key(config['macroSwitch'])
         return self.file_manager.save_config_file(config)
 
+    def get_phone_input_state(self):
+        """Return phone keyboard state for frontend polling."""
+        km = self.key_mapping_executor
+        return {
+            "keyboard_shown": km.keyboard_shown if km else None,
+            "just_hidden": km.read_and_clear_just_hidden() if km else False,
+        }
+
     def get_macro_files(self):
         return self.file_manager.get_macro_files()
 
@@ -241,7 +249,20 @@ class Api:
     def scrcpy_set_clipboard(self, text):
         return self.scrcpy.set_clipboard(text)
 
+    def scrcpy_send_text(self, text: str):
+        self.logger.info(f"Sending text: {text}")
+        return self.scrcpy.send_text(text)
+
+    def _notify_keyboard_state(self, shown: bool, just_hidden: bool):
+        try:
+            if self._is_window_valid():
+                js = f"window.__onKeyboardState && window.__onKeyboardState({str(shown).lower()},{str(just_hidden).lower()})"
+                self._window.evaluate_js(js)
+        except Exception:
+            pass
+
     def scrcpy_switch_to_wireless(self):
+
         return self.scrcpy.switch_to_wireless()
 
     def scrcpy_discover_usb_serial(self):
