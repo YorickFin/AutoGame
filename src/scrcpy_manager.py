@@ -68,69 +68,23 @@ class ScrcpyManager:
     "7": 14,
     "8": 15,
     "9": 16,
+    "Numpad0": 7,
+    "Numpad1": 8,
+    "Numpad2": 9,
+    "Numpad3": 10,
+    "Numpad4": 11,
+    "Numpad5": 12,
+    "Numpad6": 13,
+    "Numpad7": 14,
+    "Numpad8": 15,
+    "Numpad9": 16,
     "Space": 62,
+    "Back": 67,
+    "Decimal": 56,
     "Enter": 66,
-    "Back": 4,
-    "Tab": 61,
-    "Esc": 111,
-    "CapsLock": 115,
-    "LShift": 59,
-    "RShift": 60,
-    "LCtrl": 113,
-    "RCtrl": 114,
-    "LAlt": 57,
-    "RAlt": 58,
-    "LWin": 551,
-    "RWin": 552,
-    "Menu": 82,
-    "Left": 21,
-    "Up": 19,
-    "Right": 22,
-    "Down": 20,
-    "Insert": 214,
-    "Delete": 67,
-    "Home": 3,
-    "End": 123,
-    "PgUp": 92,
-    "PgDown": 93,
-    "Numpad0": 144,
-    "Numpad1": 145,
-    "Numpad2": 146,
-    "Numpad3": 147,
-    "Numpad4": 148,
-    "Numpad5": 149,
-    "Numpad6": 150,
-    "Numpad7": 151,
-    "Numpad8": 152,
-    "Numpad9": 153,
-    "Multiply": 78,
-    "Add": 81,
-    "Subtract": 69,
-    "Divide": 88,
-    "Numlock": 143,
-    "Decimal": 158,
-    "F1": 131,
-    "F2": 132,
-    "F3": 133,
-    "F4": 134,
-    "F5": 135,
-    "F6": 136,
-    "F7": 137,
-    "F8": 138,
-    "F9": 139,
-    "F10": 140,
-    "F11": 141,
-    "F12": 142
-}
-
-    # Mouse button names that map to touch events
-    MOUSE_BUTTON_MAP_ADB = {
-        'MLeft': 'touch',
-        'MRight': 'touch',
-        'Middle': 'touch',
-        'MSide1': 'touch',
-        'MSide2': 'touch',
     }
+
+
 
     def __init__(self) -> None:
         self._loop = asyncio.new_event_loop()
@@ -193,11 +147,14 @@ class ScrcpyManager:
     def send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
         return self._submit(self._send_touch(action, x, y, width, height))
 
-    def send_keycode(self, keycode: int, action: int = 0) -> dict[str, Any]:
-        return self._submit(self._send_keycode(action, keycode))
+    def send_keycode(self, key_code: str, action: int = 0) -> dict[str, Any]:
+        return self._submit(self._send_keycode(action, key_code))
 
     def set_clipboard(self, text: str) -> dict[str, Any]:
         return self._submit(self._set_clipboard(text))
+
+    def send_text(self, text: str) -> dict[str, Any]:
+        return self._submit(self._send_text(text))
 
     def switch_to_wireless(self) -> dict[str, Any]:
         return self._submit(self._switch_to_wireless())
@@ -315,6 +272,15 @@ class ScrcpyManager:
             return {"ok": False, "error": "control stream is not running"}
         try:
             await self._client.control.set_clipboard(text, sequence=1, paste=False)
+            return {"ok": True}
+        except (BrokenPipeError, ConnectionError, OSError) as exc:
+            return {"ok": False, "error": str(exc)}
+
+    async def _send_text(self, text: str) -> dict[str, Any]:
+        if self._client is None or self._client.control is None:
+            return {"ok": False, "error": "control stream is not running"}
+        try:
+            await self._client.control.set_clipboard(text, sequence=1, paste=True)
             return {"ok": True}
         except (BrokenPipeError, ConnectionError, OSError) as exc:
             return {"ok": False, "error": str(exc)}
@@ -524,8 +490,7 @@ class ScrcpyManager:
         self._pointer_manager.reset()
         return {"ok": True}
 
-    def get_pointer_manager(self) -> PointerManager:
-        return self._pointer_manager
+
 
 
     def key_mapping_swipe(self, path_data: list) -> dict:

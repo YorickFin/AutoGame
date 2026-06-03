@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="screencast-viewer" :class="{ 'fullscreen-mode': isFullscreen }" :data-theme="currentTheme" @keydown="handleKeydown">
     <div v-if="!isFullscreen" class="viewer-sidebar">
       <button class="stop-btn" @click="handleStop">
@@ -7,8 +7,13 @@
     </div>
     <div ref="viewport" class="viewport">
       <div class="screen-wrapper" :style="screenStyle">
+      <input ref="imeInput" type="text" class="ime-input"
+             tabindex="-1" autocomplete="off"
+             @keydown="onImeKeydown"
+             @compositionstart="onImeCompStart"
+             @compositionend="onImeCompEnd" />
         <canvas
-          ref="canvas"
+          ref="canvas" tabindex="-1"
           @pointerdown.prevent="onPointer(0, $event)"
           @pointermove.prevent="onPointer(2, $event)"
           @pointerup.prevent="onPointer(1, $event)"
@@ -81,7 +86,6 @@ const status = ref<{ running: boolean; deviceName?: string | null; error?: strin
 const hoveredButtons = ref<Record<string, string>>({})
 const isFullscreen = ref(false)
 const showKeyMapping = ref(false)
-const isKeyMappingActive = ref(false)
 const isCameraMode = ref(false)
 const hasMleftKeyConfigured = ref(false)
 let cameraCenterX = 0.5
@@ -90,6 +94,12 @@ let ws: WebSocket | null = null
 let wsReconnectAttempts = 0
 let mleftCheckInterval: number | null = null
 const MAX_WS_RECONNECT = 3
+
+const imeInput = ref<HTMLInputElement>()
+let imeComposing = false
+let imePrevValue = ''
+
+// IME input capture
 
 const screenStyle = computed((): Record<string, string> => {
   if (!session.value.width || !session.value.height) return {} as Record<string, string>
@@ -331,8 +341,6 @@ function closeWebSocket() {
   wsReconnectAttempts = 0
 }
 
-
-
 function decodeVideoBytes(data: Uint8Array, meta: { pts?: number | null; keyFrame?: boolean; config?: boolean }) {
   if (!("VideoDecoder" in window)) {
     return
@@ -492,7 +500,6 @@ function toggleKeyMapping() {
 
 function closeKeyMapping() {
   showKeyMapping.value = false
-  isKeyMappingActive.value = true
 }
 
 async function enterCameraMode(config?: { x: number; y: number }) {
@@ -551,9 +558,30 @@ onMounted(async () => {
   window.addEventListener('blur', handleBlur)
   window.addEventListener('focus', handleFocus)
   window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('keyup', handleKeyup)
 
   // Register global camera mode function for backend to call
+
+  ;(window as any).__onKeyboardState = (shown: boolean, justHidden: boolean): void => {
+    if (shown) {
+      imeInput.value?.focus()
+    }
+    if (justHidden) {
+      if (imeInput.value) {
+        imeInput.value.value = ''
+        imePrevValue = ''
+        imeInput.value.blur()
+      }
+      // Focus the canvas/viewport so keyboard events go there
+      document.querySelector('canvas')?.focus()
+      return
+    }
+  }
+  ;(window as any).__clearImeInput = (): void => {
+    if (imeInput.value) {
+      imeInput.value.value = ''
+      imePrevValue = ''
+    }
+  }
   ;(window as any).setCameraMode = setCameraMode
 
   // 初始检查MLeft键状态并定期刷新
@@ -570,7 +598,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('blur', handleBlur)
   window.removeEventListener('focus', handleFocus)
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('keyup', handleKeyup)
 
   // Clean up global function
   delete (window as any).setCameraMode
@@ -581,6 +608,36 @@ onBeforeUnmount(() => {
   }
   stopConnection()
 })
+
+function onImeCompStart() {
+  imeComposing = true
+}
+
+function onImeCompEnd(e: Event) {
+  imeComposing = false
+  // IME compositon结束后浏览器在1x1px input上会把光标重置到开头
+  // 这里把光标强制恢复到末尾，避免后续输入跑到错误位置
+  const input = e.target as HTMLInputElement
+  const len = input.value.length
+  if (len > 0) {
+    requestAnimationFrame(() => {
+      input.setSelectionRange(len, len)
+    })
+  }
+}
+
+function onImeKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Backspace' || imeComposing) return
+  // Backspace while NOT composing: prevent IME from re-entering composition,
+  e.preventDefault()
+  const input = e.target as HTMLInputElement
+  if (input.value.length > 0) {
+    input.value = input.value.slice(0, -1)
+  }
+  if (imePrevValue.length > 0) {
+    imePrevValue = imePrevValue.slice(0, -1)
+  }
+}
 
 function handleBlur() {
   callApi("set_focus_state", false).catch(() => {})
@@ -598,9 +655,6 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && isFullscreen.value) {
     toggleScrcpyFullscreen()
   }
-}
-
-function handleKeyup(_event: KeyboardEvent) {
 }
 
 function setCameraMode(active: boolean, config?: { x: number; y: number; sensitivity?: number }) {

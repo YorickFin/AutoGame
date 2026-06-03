@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import re
+import subprocess
 import threading
 import time
 from autoxkit.mousekey.mouse import Mouse
@@ -32,6 +34,12 @@ class KeyMappingExecutor:
         self._camera_poll_thread = None      # 轮询线程
         self._camera_poll_stop = threading.Event()  # 停止信号
         self._camera_lock = threading.Lock() # 保护共享状态
+        self._adb_path = str(self.scrcpy.PLUGIN_DIR / "adb.exe")
+        self._keyboard_shown: bool | None = None
+        self._keyboard_just_hidden = False
+        self._kb_poll_stop = threading.Event()
+        self._kb_poll_thread: threading.Thread | None = None
+        self._kb_poll_started = False
 
     _DIR_VECTORS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
     _OPPOSITE_DIRS = {"up": "down", "down": "up", "left": "right", "right": "left"}
@@ -40,6 +48,7 @@ class KeyMappingExecutor:
         self._active_mapping = mapping_data
         self._enabled = True
         self._camera_sensitivity = mapping_data.get('cameraSensitivity', 1.0)
+        self._start_keyboard_poll()
 
     def remove(self):
         self.reset()
@@ -238,6 +247,14 @@ class KeyMappingExecutor:
 
             return True
 
+        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if self._keyboard_shown and key_code == 67:
+            self.scrcpy.send_keycode(key_code, 0)
+            return True
+        elif not self._keyboard_shown and key_code:
+            self.scrcpy.send_keycode(key_code, 0)
+            return True
+
         return False
 
     def on_key_up(self, key_name):
@@ -286,6 +303,16 @@ class KeyMappingExecutor:
                     self.scrcpy.send_normalized_touch(2, new_edge[0], new_edge[1], pointer_id=state["pid"])
                     state["ex"], state["ey"] = new_edge
 
+            return True
+
+        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if self._keyboard_shown:
+            self._poll_keyboard_input()
+            if key_code == 67:
+                self.scrcpy.send_keycode(key_code, 1)
+            return True
+        elif not self._keyboard_shown and key_code:
+            self.scrcpy.send_keycode(key_code, 1)
             return True
 
         return False
@@ -446,6 +473,64 @@ class KeyMappingExecutor:
         self._camera_last_mouse = (0, 0)
         if self.scrcpy:
             self.scrcpy.key_mapping_reset()
+
+    # -- Phone keyboard polling --
+
+    @property
+    def keyboard_shown(self) -> bool | None:
+        return self._keyboard_shown
+
+    def read_and_clear_just_hidden(self) -> bool:
+        val = self._keyboard_just_hidden
+        self._keyboard_just_hidden = False
+        return val
+
+    def _start_keyboard_poll(self):
+        if self._kb_poll_started:
+            return
+        self._kb_poll_started = True
+        self._kb_poll_stop.clear()
+        self._kb_poll_thread = threading.Thread(target=self._keyboard_poll_loop, daemon=True)
+        self._kb_poll_thread.start()
+
+
+
+    def _poll_keyboard_state(self) -> bool | None:
+        try:
+            cmd = [self._adb_path, "shell", "dumpsys", "input_method"]
+            r = subprocess.run(cmd, capture_output=True, timeout=5)
+            if r.returncode != 0:
+                return None
+            output = r.stdout.decode("utf-8", errors="replace")
+            m = re.search(r"mInputShown=(true|false)", output)
+            return m.group(1) == "true" if m else None
+        except Exception:
+            return None
+
+    def _keyboard_poll_loop(self):
+        while not self._kb_poll_stop.is_set():
+            time.sleep(0.1)
+            shown = self._poll_keyboard_state()
+            if shown is not None:
+                prev = self._keyboard_shown
+                self._keyboard_shown = shown
+                if prev is True and shown is False:
+                    self._keyboard_just_hidden = True
+                    if self._api:
+                        self._api._notify_keyboard_state(False, True)
+                elif prev is not True and shown is True:
+                    if self._api:
+                        self._api._notify_keyboard_state(True, False)
+
+    def _poll_keyboard_input(self):
+        try:
+            js = "document.querySelector('.ime-input')?.value || ''"
+            cur = self._api._window.evaluate_js(js)
+            if cur:
+                self.scrcpy.send_text(''.join(cur))
+                self._api._window.evaluate_js("window.__clearImeInput?.()")
+        except Exception:
+            pass
 
     def set_focus_state(self, focused):
         if not focused and self._enabled:
