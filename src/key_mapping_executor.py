@@ -500,7 +500,7 @@ class KeyMappingExecutor:
 
     def _keyboard_poll_loop(self):
         while not self._kb_poll_stop.is_set():
-            time.sleep(1)
+            time.sleep(0.1)
             output = self.scrcpy.adb_shell("dumpsys", "input_method")
             shown = None
             if output is not None:
