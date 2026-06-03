@@ -178,7 +178,7 @@ function scrcpyHome() {
 }
 
 async function handleStop() {
-  stopConnection()
+  await stopConnection()
   emit("back")
 }
 

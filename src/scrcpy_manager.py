@@ -205,6 +205,8 @@ class ScrcpyManager:
                 server_args.append(f"video_bit_rate={bitrate * 1000000}")
             if fps_limit != "unlimited":
                 server_args.append(f"max_fps={fps_limit}")
+            # Keyframe every ~1 second to avoid long black screen on new client
+            server_args.append("i-frame-interval=1")
         if audio_enabled:
             server_args.append(f"audio_source={audio_source}")
             server_args.append("audio_codec=raw")
@@ -245,6 +247,7 @@ class ScrcpyManager:
             await self._client.stop()
             self._client = None
         self._last_session = None
+        await self._stop_ws_stream()
         return {"running": False}
 
     async def _send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
