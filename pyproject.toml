@@ -1,6 +1,6 @@
 [project]
 name = "AutoGame"
-version = "3.5.0"
+version = "3.5.1"
 description = "AutoGame 是一个基于 Python 的自动化工具，支持前后台键鼠、图色、文字识别、手机投屏、按键映射等功能。"
 readme = "README.md"
 requires-python = ">=3.10"

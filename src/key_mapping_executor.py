@@ -35,6 +35,7 @@ class KeyMappingExecutor:
         self._camera_lock = threading.Lock() # 保护共享状态
         self._keyboard_shown: bool | None = None
         self._keyboard_just_hidden = False
+        self._last_notify_state: tuple[bool, bool] | None = None  # 上一次通知的状态，用于状态互斥
         self._kb_poll_stop = threading.Event()
         self._kb_poll_thread: threading.Thread | None = None
         self._kb_poll_started = False
@@ -512,11 +513,13 @@ class KeyMappingExecutor:
                 self._keyboard_shown = shown
                 if prev is True and shown is False:
                     self._keyboard_just_hidden = True
-                    if self._api:
+                    if self._api and self._last_notify_state != (False, True):
                         self._api._notify_keyboard_state(False, True)
+                        self._last_notify_state = (False, True)
                 elif prev is not True and shown is True:
-                    if self._api:
+                    if self._api and self._last_notify_state != (True, False):
                         self._api._notify_keyboard_state(True, False)
+                        self._last_notify_state = (True, False)
 
     def _poll_keyboard_input(self):
         try:
