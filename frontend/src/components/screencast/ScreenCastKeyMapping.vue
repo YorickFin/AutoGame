@@ -137,7 +137,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from "vue"
 import "./ScreenCastKeyMapping.css"
-import { callApi } from "../composables/useScreencastApi"
+import { callApi } from "../../composables/useScreencastApi"
 
 const props = defineProps<{
   screenStyle: Record<string, string>

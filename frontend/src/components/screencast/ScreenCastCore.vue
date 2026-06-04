@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="screencast-viewer" :class="{ 'fullscreen-mode': isFullscreen }" :data-theme="currentTheme" @keydown="handleKeydown">
     <div v-if="!isFullscreen" class="viewer-sidebar">
       <button class="stop-btn" @click="handleStop">
@@ -7,7 +7,7 @@
     </div>
     <div ref="viewport" class="viewport">
       <div class="screen-wrapper" :style="screenStyle">
-      <input ref="imeInput" type="text" class="ime-input"
+      <input ref="imeInput" type="text" id="ime-input" class="ime-input"
              tabindex="-1" autocomplete="off"
              @keydown="onImeKeydown"
              @compositionstart="onImeCompStart"
@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onBeforeUnmount, nextTick, type Ref } from "vue"
-import { callApi } from "../composables/useScreencastApi"
+import { callApi } from "../../composables/useScreencastApi"
 import ScreenCastToolbar from "./ScreenCastToolbar.vue"
 import ScreenCastKeyMapping from "./ScreenCastKeyMapping.vue"
 import "./ScreenCastCore.css"
@@ -561,7 +561,7 @@ onMounted(async () => {
 
   // Register global camera mode function for backend to call
 
-  ;(window as any).__onKeyboardState = (shown: boolean, justHidden: boolean): void => {
+  ;(window as any).__onInputState = (shown: boolean, justHidden: boolean): void => {
     if (shown) {
       imeInput.value?.focus()
     }

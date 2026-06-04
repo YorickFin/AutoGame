@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from .utils.utils_path import utils_path
 
 class MemoryLogHandler(logging.Handler):
     """内存日志处理器，将日志存储在内存中并提供错误检测功能"""
@@ -89,12 +90,12 @@ class Logger:
         """初始化日志管理器"""
         self._memory_handler = MemoryLogHandler()
 
-    def setup_logging(self, path_manager):
+    def setup_logging(self, utils_path):
         """
         配置日志系统
 
         Args:
-            path_manager: 路径管理器对象，需包含 logs_dir 属性
+            utils_path: 路径管理器对象，需包含 logs_dir 属性
 
         Returns:
             logging.Logger: 配置好的日志记录器
@@ -102,7 +103,7 @@ class Logger:
         date_format = '%Y_%m_%d__%H_%M_%S'
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
 
-        path = path_manager.logs_dir
+        path = utils_path.logs_dir
 
         log_files = list(path.glob('*.log'))
         if len(log_files) > 4:
@@ -137,4 +138,6 @@ class Logger:
         return self._memory_handler
 
 
-
+# 全局日志记录器实例 （单例模式）
+logger_manager = Logger()
+logger = logger_manager.setup_logging(utils_path)

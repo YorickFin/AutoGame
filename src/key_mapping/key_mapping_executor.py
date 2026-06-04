@@ -1,0 +1,144 @@
+"""Key mapping executor that orchestrates button mapping, input detection, and camera control."""
+
+from __future__ import annotations
+
+import logging
+
+from .button_mapping import ButtonMapping
+from .camera_controller import CameraController
+from .input_detector import InputDetector
+from ..services import services
+
+logger = logging.getLogger(__name__)
+
+
+class KeyMappingExecutor:
+    """Main executor that coordinates button mapping, input detection, and camera control."""
+
+    def __init__(self):
+        self._button_mapping = ButtonMapping(self.scrcpy)
+        self._camera = CameraController(self.scrcpy)
+        self._input = InputDetector(self.scrcpy)
+        self._enabled = False
+        self._enabled_before_focus = False
+        self._active_mapping = None
+
+    @property
+    def scrcpy(self):
+        return services.scrcpy
+
+    @property
+    def api(self):
+        try:
+            return services.api
+        except AttributeError:
+            return None
+
+    def apply(self, mapping_data):
+        self._active_mapping = mapping_data
+        self._enabled = True
+        sensitivity = mapping_data.get('cameraSensitivity', 1.0)
+        self._camera._sensitivity = sensitivity
+        self._button_mapping.apply(mapping_data)
+        self._input.start()
+
+    def remove(self):
+        self.reset()
+        self._active_mapping = None
+        self._enabled = False
+        self._button_mapping.remove()
+        self._input.reset()
+
+    @property
+    def enabled(self):
+        return self._enabled and self._active_mapping is not None
+
+    def get_mapped_keys(self):
+        return self._button_mapping.get_mapped_keys()
+
+    def on_key_down(self, key_name):
+        """Handle key press - delegate to appropriate module."""
+        if not self._enabled or not self._active_mapping:
+            return False
+
+        # Check camera controls first (toggle mode)
+        for cam in self._active_mapping.get("camera", []):
+            if cam.get("key") == key_name:
+                self._toggle_camera_mode(cam)
+                return True
+
+        # Let button mapping handle controls, swipes, dpad
+        if self._button_mapping.on_key_down(key_name):
+            return True
+
+        # Handle input keycodes
+        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if self._input.input_shown and key_code == 67:
+            self.scrcpy.send_keycode(key_code, 0)
+            return True
+        elif not self._input.input_shown and key_code:
+            self.scrcpy.send_keycode(key_code, 0)
+            return True
+
+        return False
+
+    def on_key_up(self, key_name):
+        """Handle key release - delegate to appropriate module."""
+        if not self._enabled or not self._active_mapping:
+            return False
+
+        # Let button mapping handle controls and dpad
+        if self._button_mapping.on_key_up(key_name):
+            return True
+
+        # Handle input keycodes
+        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if self._input.input_shown:
+            if self.api:
+                self.api.poll_input()
+            if key_code == 67:
+                self.scrcpy.send_keycode(key_code, 1)
+            return True
+        elif not self._input.input_shown and key_code:
+            self.scrcpy.send_keycode(key_code, 1)
+            return True
+
+        return False
+
+    def _toggle_camera_mode(self, config):
+        """Toggle camera mode (3D view control)."""
+        if self._camera.active:
+            self._camera.stop()
+            self._camera.notify_state_change(self.api)
+        else:
+            if not self.scrcpy._last_session:
+                return
+            sw, sh = self.scrcpy._last_session
+            self._camera.start(config, sw, sh, self._camera._sensitivity)
+            self._camera.notify_state_change(self.api)
+
+    def reset(self):
+        """Reset all active key states and release pointers."""
+        self._camera.reset()
+        self._input.reset()
+        self._button_mapping.reset()
+        if self.scrcpy:
+            self.scrcpy.key_mapping_reset()
+
+    @property
+    def input_shown(self):
+        return self._input.input_shown
+
+    def read_and_clear_just_hidden(self):
+        return self._input.read_and_clear_just_hidden()
+
+    def set_focus_state(self, focused):
+        if not focused and self._enabled:
+            self._enabled_before_focus = self._enabled
+            self._enabled = False
+            self.reset()
+        elif focused and not self._enabled and self._enabled_before_focus:
+            self._enabled = True
+
+    def has_mleft_key_configured(self):
+        return self._button_mapping.has_mleft_key_configured()

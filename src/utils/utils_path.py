@@ -2,16 +2,8 @@ import sys
 from pathlib import Path
 
 
-class PathManager:
+class UtilsPath:
     """统一路径管理类，处理开发环境和打包环境的路径问题"""
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """单例模式，确保全局只有一个路径管理器实例"""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __init__(self):
         """初始化路径管理器，计算各种基础路径"""
@@ -25,9 +17,9 @@ class PathManager:
             # 用户数据路径 - 使用exe所在目录
             self.base_user_path = Path(sys.executable).parent
         else:
-            # 开发环境
-            self.base_res_path = Path(__file__).parent.parent
-            self.base_user_path = Path(__file__).parent.parent
+            # 开发环境 - 资源在项目根目录
+            self.base_res_path = Path(__file__).parent.parent.parent
+            self.base_user_path = Path(__file__).parent.parent.parent
 
         # 确保用户数据目录存在
         self.base_user_path.mkdir(parents=True, exist_ok=True)
@@ -117,3 +109,6 @@ class PathManager:
             True表示打包环境，False表示开发环境
         """
         return getattr(sys, 'frozen', False)
+
+# 全局路径管理器实例 （单例模式）
+utils_path = UtilsPath()

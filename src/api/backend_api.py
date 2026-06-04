@@ -1,34 +1,52 @@
-
-
+import logging
+import math
 import subprocess
 import sys
-import math
-from .scrcpy_manager import ScrcpyManager
-from .key_mapping_executor import KeyMappingExecutor
 
-class Api:
-    def __init__(self, logger, macro, file_manager):
-        self.logger = logger
-        self.macro = macro
-        self.file_manager = file_manager
+from ..services import services
+
+
+logger = logging.getLogger(__name__)
+
+
+def _get_service(name, default=None):
+    try:
+        return getattr(services, name)
+    except AttributeError:
+        return default
+
+
+class BackendApi:
+    def __init__(self):
         self._no_key_names = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
-
-        self._window = None
         self._maximized = False
-        self.scrcpy = ScrcpyManager()
-        self.key_mapping_executor = KeyMappingExecutor(self.scrcpy, self)
+
+    @property
+    def macro(self):
+        return services.macro
+
+    @property
+    def utils_file(self):
+        return services.utils_file
+
+    @property
+    def scrcpy(self):
+        return services.scrcpy
+
+    @property
+    def key_mapping_executor(self):
+        return _get_service('key_mapping_executor')
 
     def get_config_file(self):
-        config = self.file_manager.load_config_file()
+        config = self.utils_file.load_config_file()
         self.macro.set_macro_switch_key(config['macroSwitch'])
         return config
 
     def save_config_file(self, config):
         self.macro.set_macro_switch_key(config['macroSwitch'])
-        return self.file_manager.save_config_file(config)
+        return self.utils_file.save_config_file(config)
 
     def get_phone_input_state(self):
-        """Return phone keyboard state for frontend polling."""
         km = self.key_mapping_executor
         return {
             "keyboard_shown": km.keyboard_shown if km else None,
@@ -36,34 +54,34 @@ class Api:
         }
 
     def get_macro_files(self):
-        return self.file_manager.get_macro_files()
+        return self.utils_file.get_macro_files()
 
     def load_macrofile(self, file_name: str):
-        return self.file_manager.load_macro_file(file_name)
+        return self.utils_file.load_macro_file(file_name)
 
     def save_macrofile(self, file_name: str, macro_file: str):
-        return self.file_manager.save_macro_file(file_name, macro_file)
+        return self.utils_file.save_macro_file(file_name, macro_file)
 
     def create_new_file(self):
-        return self.file_manager.create_new_file()
+        return self.utils_file.create_new_file()
 
     def rename_file(self, old_name: str, new_name: str):
-        return self.file_manager.rename_file(old_name, new_name)
+        return self.utils_file.rename_file(old_name, new_name)
 
     def open_folder(self, file_name: str):
-        return self.file_manager.open_folder(file_name)
+        return self.utils_file.open_folder(file_name)
 
     def delete_file(self, file_name: str):
-        return self.file_manager.delete_file(file_name)
+        return self.utils_file.delete_file(file_name)
 
     def clear_memory_logs(self):
-        return self.file_manager.clear_memory_logs()
+        return self.utils_file.clear_memory_logs()
 
     def has_new_error(self):
-        return self.file_manager.has_new_error()
+        return self.utils_file.has_new_error()
 
     def clear_new_error_flag(self):
-        return self.file_manager.clear_new_error_flag()
+        return self.utils_file.clear_new_error_flag()
 
     def get_macro_switch_key_name(self):
         key_name = self.macro.get_key_name()
@@ -72,21 +90,17 @@ class Api:
         return key_name
 
     def get_key_name(self):
-        key_name = self.macro.get_key_name()
-        return key_name
+        return self.macro.get_key_name()
 
     def start_key_listener(self):
-        """开始监听按键输入，用于前端轮询获取按键名称"""
         self.macro.start_listening_key()
         return {"ok": True}
 
     def stop_key_listener(self):
-        """停止监听按键输入"""
         self.macro.stop_listening_key()
         return {"ok": True}
 
     def get_pressed_key(self):
-        """获取最后按下的按键，用于前端轮询"""
         key = self.macro.get_last_key()
         return {"key": key}
 
@@ -100,64 +114,59 @@ class Api:
         return f'{x}, {y}'
 
     def get_pixel_color(self):
-        color = self.macro.get_pixel_color()
-        return color
+        return self.macro.get_pixel_color()
 
     def get_memory_logs(self):
-        return self.file_manager.get_memory_logs()
+        return self.utils_file.get_memory_logs()
 
     def get_memory_logs_count(self):
-        return self.file_manager.get_memory_logs_count()
+        return self.utils_file.get_memory_logs_count()
 
     def get_memory_logs_since(self, index):
-        return self.file_manager.get_memory_logs_since(index)
-
-    def set_window(self, window):
-        self._window = window
+        return self.utils_file.get_memory_logs_since(index)
 
     def get_app_info(self):
-        return self.file_manager._load_project_info()
+        return self.utils_file._load_project_info()
 
     def minimize(self):
-        self.logger.info('Minimize called')
+        logger.info('Minimize called')
         if self._window:
             try:
                 self._window.minimize()
-                self.logger.info('Window minimized successfully')
+                logger.info('Window minimized successfully')
             except Exception as e:
-                self.logger.error(f'Failed to minimize window: {e}')
+                logger.error(f'Failed to minimize window: {e}')
 
     def close(self):
-        self.logger.info('Close called')
+        logger.info('Close called')
         if self._window:
             try:
-                config = self.file_manager.load_config_file()
+                config = self.utils_file.load_config_file()
                 minimize_to_tray = config.get('minimizeToTray', True)
                 if minimize_to_tray:
-                    self.logger.info('Hiding window to tray')
+                    logger.info('Hiding window to tray')
                     self._window.hide()
                 else:
-                    self.logger.info('Destroying window')
+                    logger.info('Destroying window')
                     self._window.destroy()
             except Exception as e:
-                self.logger.error(f'Failed to close window: {e}')
+                logger.error(f'Failed to close window: {e}')
 
     def toggle_maximize(self):
-        self.logger.info('Toggle maximize called')
+        logger.info('Toggle maximize called')
         if self._window:
             try:
                 if self._maximized:
                     self._window.restore()
                     self._maximized = False
-                    self.logger.info('Window restored')
+                    logger.info('Window restored')
                     return False
-                else:
-                    self._window.maximize()
-                    self._maximized = True
-                    self.logger.info('Window maximized')
-                    return True
+                self._window.maximize()
+                self._maximized = True
+                logger.info('Window maximized')
+                return True
             except Exception as e:
-                self.logger.error(f'Failed to toggle maximize: {e}')
+                logger.error(f'Failed to toggle maximize: {e}')
         return False
 
     def get_screencast_ratio(self):
@@ -178,55 +187,8 @@ class Api:
                 subprocess.run(['xdg-open', url])
             return True
         except Exception as e:
-            self.logger.error(f'打开链接失败: {e}')
+            logger.error(f'打开链接失败: {e}')
             return False
-
-    def _is_window_valid(self):
-        """检查窗口是否仍然有效且可访问"""
-        if not self._window:
-            return False
-        try:
-            if hasattr(self._window, '_impl') and hasattr(self._window._impl, 'webview'):
-                import ctypes
-                if ctypes.c_long(self._window._impl.webview.IsDisposed).value != 0:
-                    return False
-            self._window.evaluate_js('1')
-            return True
-        except Exception:
-            return False
-
-    def disable_json_editor(self):
-        if self._is_window_valid():
-            try:
-                self._window.evaluate_js('window.disableJsonEditor && window.disableJsonEditor()')
-            except Exception as e:
-                self.logger.error(f'disable_json_editor 执行失败: {e}')
-
-    def enable_json_editor(self):
-        if self._is_window_valid():
-            try:
-                self._window.evaluate_js('window.enableJsonEditor && window.enableJsonEditor()')
-            except Exception as e:
-                self.logger.error(f'enable_json_editor 执行失败: {e}')
-
-    def save_json_file(self):
-        if self._is_window_valid():
-            try:
-                self._window.evaluate_js('window.saveFile && window.saveFile()')
-            except Exception as e:
-                self.logger.error(f'save_json_file 执行失败: {e}')
-
-    def toggle_screencast_fullscreen(self):
-        if self._is_window_valid():
-            try:
-                self._window.evaluate_js('window.toggleScreencastFullscreen && window.toggleScreencastFullscreen()')
-            except Exception as e:
-                self.logger.error(f'toggle_screencast_fullscreen 执行失败: {e}')
-
-
-    # ------------------------------------------------------------------ #
-    # Scrcpy / screencast API
-    # ------------------------------------------------------------------ #
 
     def scrcpy_start(self, serial=None, config=None):
         return self.scrcpy.start(serial, config)
@@ -250,19 +212,10 @@ class Api:
         return self.scrcpy.set_clipboard(text)
 
     def scrcpy_send_text(self, text: str):
-        self.logger.info(f"Sending text: {text}")
+        logger.info(f"Sending text: {text}")
         return self.scrcpy.send_text(text)
 
-    def _notify_keyboard_state(self, shown: bool, just_hidden: bool):
-        try:
-            if self._is_window_valid():
-                js = f"window.__onKeyboardState && window.__onKeyboardState({str(shown).lower()},{str(just_hidden).lower()})"
-                self._window.evaluate_js(js)
-        except Exception:
-            pass
-
     def scrcpy_switch_to_wireless(self):
-
         return self.scrcpy.switch_to_wireless()
 
     def scrcpy_discover_usb_serial(self):
@@ -283,54 +236,50 @@ class Api:
     def scrcpy_home(self):
         return self.scrcpy.home()
 
-
-
-    # ------------------------------------------------------------------ #
-    # Key mapping API
-    # ------------------------------------------------------------------ #
-
     def get_key_mapping_files(self):
-        return self.file_manager.get_key_mapping_files()
+        return self.utils_file.get_key_mapping_files()
 
     def load_key_mapping_file(self, file_name):
-        return self.file_manager.load_key_mapping_file(file_name)
+        return self.utils_file.load_key_mapping_file(file_name)
 
     def save_key_mapping_file(self, file_name, data):
-        return self.file_manager.save_key_mapping_file(file_name, data)
+        return self.utils_file.save_key_mapping_file(file_name, data)
 
     def create_key_mapping_file(self):
-        return self.file_manager.create_key_mapping_file()
+        return self.utils_file.create_key_mapping_file()
 
     def rename_key_mapping_file(self, old_name, new_name):
-        return self.file_manager.rename_key_mapping_file(old_name, new_name)
+        return self.utils_file.rename_key_mapping_file(old_name, new_name)
 
     def delete_key_mapping_file(self, file_name):
-        return self.file_manager.delete_key_mapping_file(file_name)
+        return self.utils_file.delete_key_mapping_file(file_name)
 
     def set_key_mapping_executor(self, executor):
-        self.key_mapping_executor = executor
-        if self.macro:
-            self.macro.set_key_mapping_executor(executor)
+        services.key_mapping_executor = executor
+        if _get_service('macro'):
+            services.macro.set_key_mapping_executor(executor)
         return {"ok": True}
 
     def apply_key_mapping(self, file_name):
-        data = self.file_manager.load_key_mapping_file(file_name)
+        data = self.utils_file.load_key_mapping_file(file_name)
         if not data:
             return {"ok": False, "error": "failed to load key mapping"}
         self.scrcpy.apply_key_mapping(data)
-        self.key_mapping_executor.apply(data)
+        if self.key_mapping_executor:
+            self.key_mapping_executor.apply(data)
         return {"ok": True}
 
     def remove_key_mapping(self):
         self.scrcpy.remove_key_mapping()
-        self.key_mapping_executor.remove()
+        if self.key_mapping_executor:
+            self.key_mapping_executor.remove()
         return {"ok": True}
 
     def scrcpy_send_normalized_touch(self, action, x, y):
         return self.scrcpy.send_normalized_touch(action, x, y)
 
     def get_key_mapping_mapped_keys(self):
-        if hasattr(self, 'key_mapping_executor') and self.key_mapping_executor:
+        if self.key_mapping_executor:
             return list(self.key_mapping_executor.get_mapped_keys())
         return []
 
@@ -346,21 +295,18 @@ class Api:
     def set_screencast_ratio(self, ratio):
         if ratio == "reset":
             return self.scrcpy.reset_screen_ratio()
-        elif ratio == "monitor":
+        if ratio == "monitor":
             w, h = self.macro.get_screen_size()
             w, h = int(w), int(h)
             gcd = math.gcd(w, h)
             wr, hr = w // gcd, h // gcd
             return self.scrcpy.set_screen_ratio(wr, hr)
-        elif ratio == "16:9":
+        if ratio == "16:9":
             return self.scrcpy.set_screen_ratio(16, 9)
-        else:
-            return {"ok": False, "error": f"unknown ratio: {ratio}"}
-
+        return {"ok": False, "error": f"unknown ratio: {ratio}"}
 
     def has_mleft_key_configured(self):
-        """检查当前键位映射是否有任何控件配置了MLeft键"""
-        if hasattr(self, 'key_mapping_executor') and self.key_mapping_executor:
+        if self.key_mapping_executor:
             return self.key_mapping_executor.has_mleft_key_configured()
         return False
 
@@ -397,9 +343,6 @@ class Api:
             'set_focus_state',
             'stop_key_listener',
             'get_pressed_key',
+            'get_phone_input_state',
             'has_mleft_key_configured',
         ]
-
-
-
-
