@@ -6,13 +6,17 @@ import math
 import re
 import threading
 import time
+import logging
 from autoxkit.mousekey.mouse import Mouse
+
+from ..services import services
+
+
+logger = logging.getLogger(__name__)
 
 
 class KeyMappingExecutor:
-    def __init__(self, scrcpy_manager, api=None):
-        self.scrcpy = scrcpy_manager
-        self._api = api
+    def __init__(self):
         self._active_mapping = None
         self._enabled = False
         self._enabled_before_focus = False
@@ -42,6 +46,24 @@ class KeyMappingExecutor:
 
     _DIR_VECTORS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
     _OPPOSITE_DIRS = {"up": "down", "down": "up", "left": "right", "right": "left"}
+
+    @property
+    def scrcpy(self):
+        return services.scrcpy
+
+    @property
+    def api(self):
+        try:
+            return services.api
+        except AttributeError:
+            return None
+
+    @property
+    def window(self):
+        try:
+            return services.window
+        except AttributeError:
+            return None
 
     def apply(self, mapping_data):
         self._active_mapping = mapping_data
@@ -376,15 +398,8 @@ class KeyMappingExecutor:
     def _notify_camera_mode_change(self, active, data):
         """Notify frontend about camera mode state change."""
         # Call frontend function via webview through API
-        if self._api and hasattr(self._api, '_window') and self._api._window:
-            try:
-                if active and data:
-                    js_code = f'window.setCameraMode(true, {{"x": {data["center"][0]}, "y": {data["center"][1]}, "sensitivity": {data["sensitivity"]}}})'
-                else:
-                    js_code = 'window.setCameraMode(false)'
-                self._api._window.evaluate_js(js_code)
-            except Exception:
-                pass
+        if self.api:
+            self.api.notify_camera_mode_change(active, data)
 
     def _camera_poll_loop(self):
         """Background thread: polls mouse position at 100Hz, sends touch deltas,
@@ -513,21 +528,23 @@ class KeyMappingExecutor:
                 self._keyboard_shown = shown
                 if prev is True and shown is False:
                     self._keyboard_just_hidden = True
-                    if self._api and self._last_notify_state != (False, True):
-                        self._api._notify_keyboard_state(False, True)
+                    if self.api and self._last_notify_state != (False, True):
+                        self.api._notify_keyboard_state(False, True)
                         self._last_notify_state = (False, True)
                 elif prev is not True and shown is True:
-                    if self._api and self._last_notify_state != (True, False):
-                        self._api._notify_keyboard_state(True, False)
+                    if self.api and self._last_notify_state != (True, False):
+                        self.api._notify_keyboard_state(True, False)
                         self._last_notify_state = (True, False)
 
     def _poll_keyboard_input(self):
         try:
+            if not self.window:
+                return
             js = "document.querySelector('.ime-input')?.value || ''"
-            cur = self._api._window.evaluate_js(js)
+            cur = self.window.evaluate_js(js)
             if cur:
                 self.scrcpy.send_text(''.join(cur))
-                self._api._window.evaluate_js("window.__clearImeInput?.()")
+                self.window.evaluate_js("window.__clearImeInput?.()")
         except Exception:
             pass
 

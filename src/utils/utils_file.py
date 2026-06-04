@@ -1,63 +1,51 @@
-﻿import shutil
+﻿import logging
+import shutil
 import json
 import ast
 import tomli
 import subprocess
 
+from ..services import services
+from .utils_path import utils_path
+from ..logger import logger_manager
 
-class FileManager:
+logger = logging.getLogger(__name__)
 
-    def __init__(self, logger, path_manager, macro):
-        self.logger = logger
-        self.macro = macro
+class UtilsFile:
 
-        # 使用统一的路径管理器
-        self.path_manager = path_manager
-        self.base_res_path = self.path_manager.base_res_path
-        self.base_user_path = self.path_manager.base_user_path
+    def __init__(self):
+        self._memory_handler = logger_manager.get_memory_handler()
 
         self.file_list = []
-        self.new_file_content = [
-            {
-                '备注': '基本信息',
-                '按键更改': '',
-                '坐标更改': f'{self.macro.get_screen_size()}',
-                '窗口标题': '',
-                '窗口类名': '',
-                '鼠标图标更改': '是'
-            }
-        ]
-        # 宏文件目录
-        self.macro_dir = self.path_manager.macro_dir
 
         self.config = {}
-        # 配置文件路径
-        self.config_path = self.path_manager.config_path
         self._init_config()
 
-        self.pyproject_path = self.path_manager.pyproject_path
+    @property
+    def macro(self):
+        return services.macro
 
     def _init_config(self):
         """初始化配置文件"""
         try:
-            if not self.config_path.exists():
+            if not utils_path.config_path.exists():
                 # 工作目录没有配置文件，从资源目录复制
-                res_config_path = self.base_res_path / 'data' / 'config' / 'config.json'
-                self.config_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(res_config_path, self.config_path)
+                res_config_path = utils_path.base_res_path / 'data' / 'config' / 'config.json'
+                utils_path.config_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(res_config_path, utils_path.config_path)
 
-                res_macrofile_dir = self.base_res_path / 'data' / 'macrofile' / 'A示例文件.json'
-                self.macro_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(res_macrofile_dir, self.macro_dir)
+                res_macrofile_dir = utils_path.base_res_path / 'data' / 'macrofile' / 'A示例文件.json'
+                utils_path.macro_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(res_macrofile_dir, utils_path.macro_dir)
 
-                target_image = self.base_user_path / 'data' / 'target_image'
+                target_image = utils_path.base_user_path / 'data' / 'target_image'
                 target_image.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            self.logger.error(f'初始化配置文件失败: {e}')
+            logger.error(f'初始化配置文件失败: {e}')
 
     def _load_project_info(self):
         try:
-            with open(self.pyproject_path, 'rb') as f:
+            with open(utils_path.pyproject_path, 'rb') as f:
                 data = tomli.load(f)
             return {
                 'name': data['project']['name'],
@@ -66,7 +54,7 @@ class FileManager:
                 'instructions': data['urls']['instructions']
             }
         except Exception as e:
-            self.logger.error(f'加载项目信息 报错信息：{e}')
+            logger.error(f'加载项目信息 报错信息：{e}')
             return {'name': 'AutoGame', 'version': '0.0.0'}
 
     def load_config_file(self):
@@ -76,13 +64,13 @@ class FileManager:
             dict | False: 配置文件内容字典 | False
         """
         try:
-            if self.config_path.exists():
-                with open(self.config_path, 'r', encoding='utf-8-sig') as f:
+            if utils_path.config_path.exists():
+                with open(utils_path.config_path, 'r', encoding='utf-8-sig') as f:
                     self.config = json.load(f)
             else:
-                self.config_path.mkdir(parents=True, exist_ok=True)
+                utils_path.config_path.mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            self.logger.error(f'加载配置文件 报错信息：{e}')
+            logger.error(f'加载配置文件 报错信息：{e}')
             return False
         finally:
             return self.config
@@ -96,11 +84,11 @@ class FileManager:
             bool: 是否成功保存
         """
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(utils_path.config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)
             return True
         except Exception as e:
-            self.logger.error(f'保存配置文件 报错信息：{e}')
+            logger.error(f'保存配置文件 报错信息：{e}')
             return False
 
     def get_macro_files(self):
@@ -109,8 +97,8 @@ class FileManager:
         Returns:
             list: 所有 json 文件名列表(不包含扩展名)
         """
-        self.file_list = [f.stem for f in self.macro_dir.glob('*.json') if f.suffix == '.json']
-        self.logger.info(f'宏文件列表：{self.file_list}')
+        self.file_list = [f.stem for f in utils_path.macro_dir.glob('*.json') if f.suffix == '.json']
+        logger.info(f'宏文件列表：{self.file_list}')
         return self.file_list
 
     def load_macro_file(self, file_name: str):
@@ -121,15 +109,15 @@ class FileManager:
         Returns:
             dict | False: 宏文件内容字典 | False
         """
-        self.logger.info(f'加载宏文件：{file_name}')
-        file_path = self.macro_dir / f'{file_name}.json'
+        logger.info(f'加载宏文件：{file_name}')
+        file_path = utils_path.macro_dir / f'{file_name}.json'
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 macro_file = json.load(f)
             self.macro.set_macro_file(macro_file)
             return macro_file
         except Exception as e:
-            self.logger.error(f'加载宏文件 报错信息：{e}')
+            logger.error(f'加载宏文件 报错信息：{e}')
             return False
 
     def save_macro_file(self, file_name: str, macro_file: str):
@@ -169,7 +157,7 @@ class FileManager:
                     text = text.replace(old, new)
                 return ast.literal_eval(text)
             except Exception as e:
-                self.logger.error(f'预处理宏文件 报错信息：{e}')
+                logger.error(f'预处理宏文件 报错信息：{e}')
                 return False
 
         def save_file(macro_file: dict, file_path: str):
@@ -183,12 +171,12 @@ class FileManager:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(macro_file, f, ensure_ascii=False, indent=4)
             except Exception as e:
-                self.logger.error(f'保存宏文件 报错信息：{e}')
+                logger.error(f'保存宏文件 报错信息：{e}')
                 return False
 
         try:
-            self.logger.info(f'保存宏文件：{file_name}')
-            file_path = self.macro_dir / f'{file_name}.json'
+            logger.info(f'保存宏文件：{file_name}')
+            file_path = utils_path.macro_dir / f'{file_name}.json'
             macro_file = preprocess_file(macro_file)
             if not macro_file:
                 return False
@@ -196,7 +184,7 @@ class FileManager:
             self.macro.set_macro_file(macro_file)
             return macro_file
         except Exception as e:
-            self.logger.error(f'保存宏文件 报错信息：{e}')
+            logger.error(f'保存宏文件 报错信息：{e}')
             return False
 
     def create_new_file(self):
@@ -204,16 +192,26 @@ class FileManager:
             创建新文件
         """
         try:
+            new_file_content = [
+                {
+                    '备注': '基本信息',
+                    '按键更改': '',
+                    '坐标更改': f'{self.macro.get_screen_size()}',
+                    '窗口标题': '',
+                    '窗口类名': '',
+                    '鼠标图标更改': '是'
+                }
+            ]
             new_file_name = ''
             for i in range(1, 1000):
                 if f'新建文件{i}' not in self.file_list:
                     new_file_name = f'新建文件{i}'
                     break
-            self.logger.info(f'创建新文件：{new_file_name}')
-            with open(self.macro_dir / f'{new_file_name}.json', 'w', encoding='utf-8') as f:
-                json.dump(self.new_file_content, f, ensure_ascii=False, indent=4)
+            logger.info(f'创建新文件：{new_file_name}')
+            with open(utils_path.macro_dir / f'{new_file_name}.json', 'w', encoding='utf-8') as f:
+                json.dump(new_file_content, f, ensure_ascii=False, indent=4)
         except Exception as e:
-            self.logger.error(f'创建新文件 报错信息：{e}')
+            logger.error(f'创建新文件 报错信息：{e}')
             return False
 
     def rename_file(self, old_name: str, new_name: str):
@@ -224,11 +222,11 @@ class FileManager:
             new_name (str): 新文件名(不包含扩展名)
         """
         try:
-            self.logger.info(f'重命名文件：{old_name} -> {new_name}')
-            file_path = self.macro_dir / f'{old_name}.json'
-            file_path.rename(self.macro_dir / f'{new_name}.json')
+            logger.info(f'重命名文件：{old_name} -> {new_name}')
+            file_path = utils_path.macro_dir / f'{old_name}.json'
+            file_path.rename(utils_path.macro_dir / f'{new_name}.json')
         except Exception as e:
-            self.logger.error(f'重命名文件 报错信息：{e}')
+            logger.error(f'重命名文件 报错信息：{e}')
             return False
 
     def open_folder(self, file_name: str):
@@ -238,11 +236,11 @@ class FileManager:
             file_name (str): 宏文件文件名(不包含扩展名)
         """
         try:
-            self.logger.info(f'打开文件所在文件夹：{file_name}')
-            file_path = self.macro_dir / f'{file_name}.json'
+            logger.info(f'打开文件所在文件夹：{file_name}')
+            file_path = utils_path.macro_dir / f'{file_name}.json'
             subprocess.run(['explorer', '/select,', str(file_path.resolve())])
         except Exception as e:
-            self.logger.error(f'打开文件所在文件夹 报错信息：{e}')
+            logger.error(f'打开文件所在文件夹 报错信息：{e}')
             return False
 
     def delete_file(self, file_name: str):
@@ -252,20 +250,12 @@ class FileManager:
             file_name (str): 宏文件文件名(不包含扩展名)
         """
         try:
-            self.logger.info(f'删除文件：{file_name}')
-            file_path = self.macro_dir / f'{file_name}.json'
+            logger.info(f'删除文件：{file_name}')
+            file_path = utils_path.macro_dir / f'{file_name}.json'
             file_path.unlink()
         except Exception as e:
-            self.logger.error(f'删除文件 报错信息：{e}')
+            logger.error(f'删除文件 报错信息：{e}')
             return False
-
-    def set_memory_handler(self, handler):
-        """
-            设置内存日志处理器
-        Args:
-            handler: MemoryLogHandler实例
-        """
-        self._memory_handler = handler
 
     def get_memory_logs(self):
         """
@@ -278,7 +268,7 @@ class FileManager:
                 return self._memory_handler.get_logs()
             return '日志系统未初始化'
         except Exception as e:
-            self.logger.error(f'获取内存日志 报错信息：{e}')
+            logger.error(f'获取内存日志 报错信息：{e}')
             return False
 
     def get_memory_logs_count(self):
@@ -292,7 +282,7 @@ class FileManager:
                 return self._memory_handler.get_logs_count()
             return 0
         except Exception as e:
-            self.logger.error(f'获取内存日志数量 报错信息：{e}')
+            logger.error(f'获取内存日志数量 报错信息：{e}')
             return 0
 
     def get_memory_logs_since(self, index):
@@ -308,7 +298,7 @@ class FileManager:
                 return self._memory_handler.get_logs_since(index)
             return {'content': '', 'new_index': 0}
         except Exception as e:
-            self.logger.error(f'获取增量内存日志 报错信息：{e}')
+            logger.error(f'获取增量内存日志 报错信息：{e}')
             return {'content': '', 'new_index': 0}
 
     def clear_memory_logs(self):
@@ -318,11 +308,11 @@ class FileManager:
         try:
             if hasattr(self, '_memory_handler') and self._memory_handler:
                 self._memory_handler.clear_logs()
-                self.logger.info('清空内存日志')
+                logger.info('清空内存日志')
                 return True
             return False
         except Exception as e:
-            self.logger.error(f'清空内存日志 报错信息：{e}')
+            logger.error(f'清空内存日志 报错信息：{e}')
             return False
 
     def has_new_error(self):
@@ -336,7 +326,7 @@ class FileManager:
                 return self._memory_handler.has_new_error()
             return False
         except Exception as e:
-            self.logger.error(f'检查新错误 报错信息：{e}')
+            logger.error(f'检查新错误 报错信息：{e}')
             return False
 
     def clear_new_error_flag(self):
@@ -349,7 +339,7 @@ class FileManager:
                 return True
             return False
         except Exception as e:
-            self.logger.error(f'清除错误标记 报错信息：{e}')
+            logger.error(f'清除错误标记 报错信息：{e}')
             return False
 
 
@@ -358,7 +348,7 @@ class FileManager:
     # ------------------------------------------------------------------------------#
 
     def get_key_mapping_files(self):
-        mapping_dir = self.path_manager.key_mapping_dir
+        mapping_dir = utils_path.key_mapping_dir
         mapping_dir.mkdir(parents=True, exist_ok=True)
         file_list = [f.stem for f in mapping_dir.glob('*.json') if f.suffix == '.json']
         if not file_list:
@@ -369,16 +359,16 @@ class FileManager:
         return file_list
 
     def load_key_mapping_file(self, file_name):
-        file_path = self.path_manager.key_mapping_dir / f'{file_name}.json'
+        file_path = utils_path.key_mapping_dir / f'{file_name}.json'
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            self.logger.error(f'load_key_mapping_file error: {e}')
+            logger.error(f'load_key_mapping_file error: {e}')
             return False
 
     def save_key_mapping_file(self, file_name, data):
-        mapping_dir = self.path_manager.key_mapping_dir
+        mapping_dir = utils_path.key_mapping_dir
         mapping_dir.mkdir(parents=True, exist_ok=True)
         file_path = mapping_dir / f'{file_name}.json'
 
@@ -387,12 +377,12 @@ class FileManager:
                 json.dump(data, f, ensure_ascii=False, indent=4)
             return True
         except Exception as e:
-            self.logger.error(f'save_key_mapping_file error: {e}')
+            logger.error(f'save_key_mapping_file error: {e}')
             return False
 
     def create_key_mapping_file(self):
         try:
-            mapping_dir = self.path_manager.key_mapping_dir
+            mapping_dir = utils_path.key_mapping_dir
             existing = [f.stem for f in mapping_dir.glob('*.json')]
             new_name = ''
             for i in range(1, 1000):
@@ -405,24 +395,23 @@ class FileManager:
                 json.dump(data, f, ensure_ascii=False, indent=4)
             return new_name
         except Exception as e:
-            self.logger.error(f'create_key_mapping_file error: {e}')
+            logger.error(f'create_key_mapping_file error: {e}')
             return False
 
     def rename_key_mapping_file(self, old_name, new_name):
         try:
-            p = self.path_manager.key_mapping_dir / f'{old_name}.json'
-            p.rename(self.path_manager.key_mapping_dir / f'{new_name}.json')
+            p = utils_path.key_mapping_dir / f'{old_name}.json'
+            p.rename(utils_path.key_mapping_dir / f'{new_name}.json')
             return True
         except Exception as e:
-            self.logger.error(f'rename_key_mapping_file error: {e}')
+            logger.error(f'rename_key_mapping_file error: {e}')
             return False
 
     def delete_key_mapping_file(self, file_name):
         try:
-            p = self.path_manager.key_mapping_dir / f'{file_name}.json'
+            p = utils_path.key_mapping_dir / f'{file_name}.json'
             p.unlink()
             return True
         except Exception as e:
-            self.logger.error(f'delete_key_mapping_file error: {e}')
+            logger.error(f'delete_key_mapping_file error: {e}')
             return False
-

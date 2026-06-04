@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide } from 'vue'
-import Sidebar from './components/app-layout/Sidebar.vue'
-import Filelist from './components/macro-editor/Filelist.vue'
+import Sidebar from './components/app_layout/Sidebar.vue'
+import Filelist from './components/macro_editor/Filelist.vue'
 import Screencast from './components/screencast/Screencast.vue'
 import ScreenCastCore from './components/screencast/ScreenCastCore.vue'
-import Logeditor from './components/log-editor/Logeditor.vue'
+import Logeditor from './components/log_editor/Logeditor.vue'
 import Settings from './components/settings/Settings.vue'
 import './App.css'
 

@@ -1,35 +1,39 @@
 ﻿# 打包为exe文件: pyinstaller main.spec -y
 
+import logging
 import webview
 import subprocess
 from threading import Thread
 from PIL import Image
 import pystray
 from src.api import Api
-from src.ocr import ocr
+from src.services import services
+from src.utils import ocr, WebView2Checker, utils_path
+from src.utils import UtilsFile
 from src.macro import Macro
-from src.key_mapping_executor import KeyMappingExecutor
-from src.file_manager import FileManager
-from src.path_manager import PathManager
-from src.logger import Logger
-from src.webview2_checker import WebView2Checker
+from src.key_mapping import KeyMappingExecutor
+from src.scrcpy import ScrcpyManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class AutoGameApp:
     def __init__(self):
-        self.path_manager = PathManager()
-        self.logger_manager = Logger()
-        self.logger = self.logger_manager.setup_logging(self.path_manager)
-        self.webview2_checker = WebView2Checker(self.logger)
-        self.macro = Macro(self.logger, ocr, self.path_manager)
-        self.file_manager = FileManager(self.logger, self.path_manager, self.macro)
-        self.file_manager.set_memory_handler(self.logger_manager.get_memory_handler())
+        services.utils_path = utils_path
+        services.ocr = ocr
+        services.utils_file = UtilsFile()
+        services.scrcpy = ScrcpyManager()
+        services.api = Api()
+        services.macro = Macro()
+        services.key_mapping_executor = KeyMappingExecutor()
+        services.macro.set_key_mapping_executor(services.key_mapping_executor)
 
-        self.api = Api(self.logger, self.macro, self.file_manager)
-        self.macro.set_api(self.api)
-
-        self.key_mapping_executor = KeyMappingExecutor(self.api.scrcpy, self.api)
-        self.api.set_key_mapping_executor(self.key_mapping_executor)
+        self.webview2_checker = WebView2Checker()
+        self.utils_path = services.utils_path
+        self.api = services.api
+        self.macro = services.macro
+        self.key_mapping_executor = services.key_mapping_executor
 
         self.debug = True
         self.window = None
@@ -58,8 +62,8 @@ class AutoGameApp:
         获取HTML文件的路径，先检查打包环境的路径，若不存在则返回开发环境的路径。
         """
         # 检查打包环境的路径
-        if self.path_manager.is_frozen():
-            index_path = self.path_manager.index_html_path
+        if self.utils_path.is_frozen():
+            index_path = self.utils_path.index_html_path
             if index_path.exists():
                 self.debug = False
                 return str(index_path)
@@ -85,7 +89,7 @@ class AutoGameApp:
             easy_drag=False,
             js_api=self.api
         )
-        self.api.set_window(self.window)
+        services.window = self.window
         self.window.events.closed += self.on_window_closed
 
     def on_window_closed(self):
@@ -98,7 +102,7 @@ class AutoGameApp:
         if self.macro:
             self.macro.restore_mouse_icon()
             self.macro.stop()
-        self.logger.info('应用已关闭')
+        logger.info('应用已关闭')
 
     def show_window(self):
         """
@@ -129,7 +133,7 @@ class AutoGameApp:
         """
         创建系统托盘图标。
         """
-        icon_path = self.path_manager.logo_tray_path
+        icon_path = self.utils_path.logo_tray_path
         image = Image.open(icon_path)
 
         def on_tray_click(icon, item):

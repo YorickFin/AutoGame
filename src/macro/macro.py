@@ -1,5 +1,6 @@
 import time
 import ctypes
+import logging
 import numpy as np
 from threading import Thread
 from autoxkit.window import Window
@@ -7,19 +8,23 @@ from autoxkit.mousekey import Mouse, KeyBoard
 from autoxkit.match import Match
 from autoxkit.constants import Hex_Key_Code
 from autoxkit.hook import HookListener, HotkeyListener, MouseEvent, KeyEvent
+from ..services import services
+
+
+logger = logging.getLogger(__name__)
 
 HKC = Hex_Key_Code
 
 class Macro:
-    def __init__(self, logger, ocr, path_manager):
+    def __init__(self):
         self.logger = logger
-        self.ocr = ocr
-        self.api = None
+        self.ocr = services.ocr
+        self.api = services.api
 
         # 使用统一的路径管理器
-        self.path_manager = path_manager
-        self.base_res_path = self.path_manager.base_res_path
-        self.base_user_path = self.path_manager.base_user_path
+        self.utils_path = services.utils_path
+        self.base_res_path = self.utils_path.base_res_path
+        self.base_user_path = self.utils_path.base_user_path
 
         self.macro_window = None
         self.macro_switch = False
@@ -117,7 +122,7 @@ class Macro:
         """
             设置鼠标图标
         """
-        mouse_icon_path = self.path_manager.cursor_path
+        mouse_icon_path = self.utils_path.cursor_path
         try:
             if mouse_icon_path.exists():
                 cursor = ctypes.windll.user32.LoadCursorFromFileW(str(mouse_icon_path))
@@ -138,14 +143,6 @@ class Macro:
 
 
 #   --------------------------------------------------类属性设置-------------------------------------------------
-
-    def set_api(self, api):
-        """
-            设置 API 引用
-        Args:
-            api: API 对象
-        """
-        self.api = api
 
     def set_key_mapping_executor(self, executor):
         """
@@ -989,7 +986,7 @@ class Macro:
         if self.listening_for_key:
             self.last_key_pressed = self.key_name
 
-        # if not self.path_manager.is_frozen():
+        # if not self.utils_path.is_frozen():
         #     self.logger.info(f'键鼠监听器 按键按下：{self.key_name}')
 
         # 宏开关切换
@@ -1024,7 +1021,7 @@ class Macro:
         elif isinstance(event, MouseEvent):
             self.key_name = event.button
 
-        # if not self.path_manager.is_frozen():
+        # if not self.utils_path.is_frozen():
         #     self.logger.info(f'键鼠监听器 按键弹起：{self.key_name}')
 
         # 按键映射执行器弹起事件 (scrcpy 触摸释放)

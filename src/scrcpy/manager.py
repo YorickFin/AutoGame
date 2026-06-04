@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,9 @@ from autoxkit.android import AudioVideoEvent, ScrcpyClient, ScrcpyOptions, Strea
 from autoxkit.android.control import PointerManager, ACTION_DOWN
 
 
+logger = logging.getLogger(__name__)
+
+
 class ScrcpyManager:
     """Manages a single scrcpy connection for screen casting.
 
@@ -18,7 +22,7 @@ class ScrcpyManager:
     thread-safe synchronous methods for the pywebview API.
     """
 
-    PLUGIN_DIR = Path(__file__).resolve().parents[1] / "plugins" / "scrcpy"
+    PLUGIN_DIR = Path(__file__).resolve().parents[2] / "plugins" / "scrcpy"
 
     ANDROID_KEYCODE_HOME = 3
     ANDROID_KEYCODE_BACK = 4
@@ -135,7 +139,7 @@ class ScrcpyManager:
         return self._submit(self._stop_ws_stream())
 
     async def _start_ws_stream(self) -> int:
-        self._ws_server = WsStreamServer(self._loop)
+        self._ws_server = WsStreamServer()
         port = await self._ws_server.start()
         return port
 
@@ -465,6 +469,9 @@ class ScrcpyManager:
             self._submit(self._client.control.send_keycode(android_action, android_keycode))
             return {"ok": True}
         return {"ok": False, "error": f"unknown key: {key_name}"}
+
+    def key_mapping_get_android_keycode(self, key_name: str) -> int | None:
+        return self.ANDROID_KEYCODE_MAP.get(key_name)
 
     def send_normalized_touch(self, action: int, x: float, y: float, pointer_id: int | None = None) -> dict:
         """Send touch event with normalized 0.0-1.0 coordinates.
