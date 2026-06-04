@@ -17,7 +17,6 @@ HKC = Hex_Key_Code
 
 class Macro:
     def __init__(self):
-        self.logger = logger
         self.ocr = services.ocr
         self.api = services.api
 
@@ -89,7 +88,7 @@ class Macro:
         """
             启动监听器
         """
-        self.logger.info('键鼠监听器启动')
+        logger.info('键鼠监听器启动')
         self.hook_listener.start()
 
     def _safe_save_json(self):
@@ -98,7 +97,7 @@ class Macro:
             if self.api:
                 self.api.save_json_file()
         except Exception as e:
-            self.logger.error(f'保存 JSON 文件失败: {e}')
+            logger.error(f'保存 JSON 文件失败: {e}')
 
     def _safe_toggle_fullscreen(self):
         """安全切换全屏，处理窗口已关闭的情况"""
@@ -106,13 +105,13 @@ class Macro:
             if self.api:
                 self.api.toggle_screencast_fullscreen()
         except Exception as e:
-            self.logger.error(f'切换全屏失败: {e}')
+            logger.error(f'切换全屏失败: {e}')
 
     def stop(self):
         """
             停止监听器
         """
-        self.logger.info('键鼠监听器停止')
+        logger.info('键鼠监听器停止')
         self.hook_listener.stop()
 
 
@@ -127,9 +126,9 @@ class Macro:
             if mouse_icon_path.exists():
                 cursor = ctypes.windll.user32.LoadCursorFromFileW(str(mouse_icon_path))
                 ctypes.windll.user32.SetSystemCursor(cursor, 32512)
-                self.logger.info('设置鼠标图标')
+                logger.info('设置鼠标图标')
         except Exception as e:
-            self.logger.error(f'设置鼠标图标失败: {e}')
+            logger.error(f'设置鼠标图标失败: {e}')
 
     def restore_mouse_icon(self):
         """
@@ -137,9 +136,9 @@ class Macro:
         """
         try:
             ctypes.windll.user32.SystemParametersInfoW(0x0057, 0, None, 0)
-            self.logger.info('恢复鼠标图标')
+            logger.info('恢复鼠标图标')
         except Exception as e:
-            self.logger.error(f'恢复鼠标图标失败: {e}')
+            logger.error(f'恢复鼠标图标失败: {e}')
 
 
 #   --------------------------------------------------类属性设置-------------------------------------------------
@@ -238,7 +237,7 @@ class Macro:
         try:
             for action in instruction.split(','):
                 if not self.macro_switch:
-                    self.logger.info(f'手动关闭 完整指令：{instruction}')
+                    logger.info(f'手动关闭 完整指令：{instruction}')
                     return False
                 action_list = action.strip().split()
                 if not action_list:
@@ -247,7 +246,7 @@ class Macro:
                 handler = self.commands.get(action_list[0], self._click)
                 handler(action_list, len_al, key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'执行错误 完整指令：{instruction}')
+            logger.error(f'执行错误 完整指令：{instruction}')
             raise e
 
     def _raise_error(self, error_msg):
@@ -256,7 +255,7 @@ class Macro:
         Args:
             error_msg (str): 报错信息
         """
-        self.logger.error(error_msg)
+        logger.error(error_msg)
         raise ValueError(error_msg)
 
     def _delay(self, action_list: list, len_al: int, key_mouse_mode: str = 'send'):
@@ -323,7 +322,7 @@ class Macro:
                         elif data['名称'] == action_list[0] and data['功能类型'] in self.function_names:
                             function = self.function_mapping_down.get(
                                 data['功能类型'],
-                                lambda _: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                                lambda _: logger.error(f'功能 {data["功能类型"]} 不存在')
                             )
                             break
                     if function:
@@ -463,7 +462,7 @@ class Macro:
         Args:
             data (dict): 连击数据
         """
-        self.logger.info(f'功能 连击 data：{data}')
+        logger.info(f'功能 连击 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             sleep_time = round(1 / (int(data['每秒次数'])), 4)
@@ -471,7 +470,7 @@ class Macro:
                 self.execute_macro(data['宏指令'], key_mouse_mode)
                 time.sleep(sleep_time)
         except Exception as e:
-            self.logger.error(f'功能 连击 报错信息：{e}')
+            logger.error(f'功能 连击 报错信息：{e}')
             raise e
 
     def fixed_continuous(self, data: dict):
@@ -480,7 +479,7 @@ class Macro:
         Args:
             data (dict): 固定连击数据
         """
-        self.logger.info(f'功能 固定连击 data：{data}')
+        logger.info(f'功能 固定连击 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             if '连击次数' in data and '连击间隔' in data:
@@ -490,9 +489,9 @@ class Macro:
                 if '后置指令' in data:
                     self.execute_macro(data['后置指令'], key_mouse_mode)
             else:
-                self.logger.error(f'功能 固定连击 错误信息：连击次数或连击间隔缺失，当前数据：{data}')
+                logger.error(f'功能 固定连击 错误信息：连击次数或连击间隔缺失，当前数据：{data}')
         except Exception as e:
-            self.logger.error(f'功能 固定连击 报错信息：{e}')
+            logger.error(f'功能 固定连击 报错信息：{e}')
             raise e
 
     def macros(self, data: dict):
@@ -501,12 +500,12 @@ class Macro:
         Args:
             data (dict): 宏数据
         """
-        self.logger.info(f'功能 宏 data：{data}')
+        logger.info(f'功能 宏 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             self.execute_macro(data['宏指令'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 宏 报错信息：{e}')
+            logger.error(f'功能 宏 报错信息：{e}')
             raise e
 
     def ordered_macros(self, data: dict):
@@ -515,7 +514,7 @@ class Macro:
         Args:
             data (dict): 有序宏数据
         """
-        self.logger.info(f'功能 有序宏 data：{data}')
+        logger.info(f'功能 有序宏 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             instruct = data['宏指令'].split(',')
@@ -527,7 +526,7 @@ class Macro:
                     if '后置指令' in data:
                         self.execute_macro(data['后置指令'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 有序宏 报错信息：{e}')
+            logger.error(f'功能 有序宏 报错信息：{e}')
             raise e
 
     def follow(self, data: dict, state: bool):
@@ -537,7 +536,7 @@ class Macro:
             data (dict): 跟随数据
             state (bool): 是否按下
         """
-        self.logger.info(f'功能 跟随 data：{data}')
+        logger.info(f'功能 跟随 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             instruct = data['宏指令'].split(',')
@@ -548,7 +547,7 @@ class Macro:
                 for macro in instruct:
                     self.execute_macro(f'弹起 {macro}', key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 跟随 报错信息：{e}')
+            logger.error(f'功能 跟随 报错信息：{e}')
             raise e
 
     def combination(self, data: dict, *args):
@@ -565,7 +564,7 @@ class Macro:
             '辅助': args[0][0],
         }
         print(key_mappings)
-        self.logger.info(f'功能 组合 data：{data}')
+        logger.info(f'功能 组合 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             if '分支1' in data and '分支2' in data:
@@ -585,7 +584,7 @@ class Macro:
                     instruction = instruction.replace(old, new)
                 self.execute_macro(instruction, key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 组合 报错信息：{e}')
+            logger.error(f'功能 组合 报错信息：{e}')
             raise e
 
     def mappings(self, data: dict, *args):
@@ -605,7 +604,7 @@ class Macro:
             '!映射': args[0][3],
             '映射': args[0][2],
         }
-        self.logger.info(f'功能 映射 data：{data}')
+        logger.info(f'功能 映射 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             instruction = data['宏指令']
@@ -613,7 +612,7 @@ class Macro:
                 instruction = instruction.replace(old, new)
             self.execute_macro(instruction, key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 映射 报错信息：{e}')
+            logger.error(f'功能 映射 报错信息：{e}')
             raise e
 
     def screenshot(self, data: dict):
@@ -622,7 +621,7 @@ class Macro:
         Args:
             data (dict): 截图数据
         """
-        self.logger.info(f'功能 截图 data：{data}')
+        logger.info(f'功能 截图 data：{data}')
         try:
             image_name = data.get('文件名称', 'screenshot')
             if self.macro_window:
@@ -634,7 +633,7 @@ class Macro:
                 rect = tuple(map(int, data.get('截图范围', f"0 0 {screen_width} {screen_height}").strip().split()))
                 self.match.screenshot(rect=rect, save_path=f'data\\target_image\\{image_name}.png')
         except Exception as e:
-            self.logger.error(f'功能 截图 报错信息：{e}')
+            logger.error(f'功能 截图 报错信息：{e}')
             raise e
 
     def track(self, data: dict):
@@ -660,26 +659,26 @@ class Macro:
             height = y2 - y1
             return (width == 1) != (height == 1)
 
-        self.logger.info(f'功能 追踪 data：{data}')
+        logger.info(f'功能 追踪 data：{data}')
         try:
             target_color = data.get("目标颜色", None)
             if not target_color:
-                self.logger.error(f'功能 追踪 错误信息：目标颜色缺失，当前数据：{data}')
+                logger.error(f'功能 追踪 错误信息：目标颜色缺失，当前数据：{data}')
                 return
             target_color = hex_to_rgb(target_color)
 
             track_color = data.get("追踪颜色", None)
             if not track_color:
-                self.logger.error(f'功能 追踪 错误信息：追踪颜色缺失，当前数据：{data}')
+                logger.error(f'功能 追踪 错误信息：追踪颜色缺失，当前数据：{data}')
                 return
             track_color = hex_to_rgb(track_color)
 
             rect = tuple(map(int, data.get('匹配范围', "None None None None").strip().split()))
             if 'None' in rect:
-                self.logger.error(f'功能 追踪 错误信息：匹配范围缺失，当前数据：{data}')
+                logger.error(f'功能 追踪 错误信息：匹配范围缺失，当前数据：{data}')
                 return
             if not verify_rect(rect):
-                self.logger.error(f'功能 追踪 错误信息：匹配范围格式错误，当前数据：{data}')
+                logger.error(f'功能 追踪 错误信息：匹配范围格式错误，当前数据：{data}')
                 return
 
             key_mouse_mode = data.get("键鼠模式", 'send')
@@ -701,10 +700,10 @@ class Macro:
                 target_indices = np.where(target_mask)[0]
                 if len(target_indices) == 0:
                     break_num -= 1
-                    self.logger.info(f'功能 追踪 未找到目标颜色，剩余次数：{break_num}')
+                    logger.info(f'功能 追踪 未找到目标颜色，剩余次数：{break_num}')
                     continue
                 target_idx = target_indices[0]
-                self.logger.info(f'功能 追踪 找到目标颜色，索引：{target_idx}')
+                logger.info(f'功能 追踪 找到目标颜色，索引：{target_idx}')
 
                 # 定位追踪颜色的头和尾
                 track_mask = np.all(pixels == track_color, axis=-1)
@@ -714,11 +713,11 @@ class Macro:
                 ends   = np.where(changes == -1)[0]    # 各连续段的结束索引的下一个位置
                 if len(starts) == 0:
                     break_num -= 1
-                    self.logger.info(f'功能 追踪 未找到追踪颜色，剩余次数：{break_num}')
+                    logger.info(f'功能 追踪 未找到追踪颜色，剩余次数：{break_num}')
                     continue
                 head = starts[0] + offset
                 tail = ends[-1] - offset
-                self.logger.info(f'功能 追踪 找到追踪颜色，头索引：{head}，尾索引：{tail}')
+                logger.info(f'功能 追踪 找到追踪颜色，头索引：{head}，尾索引：{tail}')
 
                 break_num = 10
 
@@ -729,11 +728,11 @@ class Macro:
                 else:
                     time.sleep(0.2)
 
-            self.logger.info('功能 追踪 结束')
+            logger.info('功能 追踪 结束')
             if '后置指令' in data:
                 self.execute_macro(data['后置指令'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 追踪 报错信息：{e}')
+            logger.error(f'功能 追踪 报错信息：{e}')
             raise e
 
     def color_match(self, data: dict):
@@ -742,27 +741,27 @@ class Macro:
         Args:
             data (dict): 颜色匹配数据
         """
-        self.logger.info(f'功能 颜色匹配 data：{data}')
+        logger.info(f'功能 颜色匹配 data：{data}')
         try:
             color_list = data.get("颜色", 'None').strip().split(',')
             if 'None' in color_list:
-                self.logger.error(f'功能 颜色匹配 错误信息：颜色参数错误，预期颜色列表，当前数据：{data}')
+                logger.error(f'功能 颜色匹配 错误信息：颜色参数错误，预期颜色列表，当前数据：{data}')
                 return
             coord_list = data.get("坐标", 'None').strip().split(',')
             if 'None' in coord_list:
-                self.logger.error(f'功能 颜色匹配 错误信息：坐标参数错误，预期坐标列表，当前数据：{data}')
+                logger.error(f'功能 颜色匹配 错误信息：坐标参数错误，预期坐标列表，当前数据：{data}')
                 return
             coord_list = [tuple(map(int, i.split())) for i in coord_list]
 
             if len(color_list) != len(coord_list):
-                self.logger.error(f'功能 颜色匹配 错误信息：颜色数量与坐标数量不一致，当前数据：{data}')
+                logger.error(f'功能 颜色匹配 错误信息：颜色数量与坐标数量不一致，当前数据：{data}')
                 return
 
             key_mouse_mode = data.get("键鼠模式", 'send')
             similarity = float(data.get("相似度", 0.8))
             pattern = data.get("模式", 'all')
             if pattern not in ['all', 'any']:
-                self.logger.error(f'功能 颜色匹配 错误信息：模式参数错误，预期all或any，当前数据：{data}')
+                logger.error(f'功能 颜色匹配 错误信息：模式参数错误，预期all或any，当前数据：{data}')
                 return
 
             flag = False
@@ -782,7 +781,7 @@ class Macro:
             elif not flag and '分支N' in data:
                 self.execute_macro(data['分支N'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 颜色匹配 报错信息：{e}')
+            logger.error(f'功能 颜色匹配 报错信息：{e}')
             raise e
 
     def image_match(self, data: dict):
@@ -791,14 +790,14 @@ class Macro:
         Args:
             data (dict): 图像匹配数据
         """
-        self.logger.info(f'功能 图像匹配 data：{data}')
+        logger.info(f'功能 图像匹配 data：{data}')
         try:
             target_image_path = data.get("图像名称", None)
             if not target_image_path:
-                self.logger.error(f'功能 图像匹配 错误信息：图像名称缺失，当前数据：{data}')
+                logger.error(f'功能 图像匹配 错误信息：图像名称缺失，当前数据：{data}')
                 return
             if not target_image_path.exists():
-                self.logger.error(f'功能 图像匹配 错误信息：图像文件不存在，当前数据：{data}')
+                logger.error(f'功能 图像匹配 错误信息：图像文件不存在，当前数据：{data}')
                 return
 
             key_mouse_mode = data.get("键鼠模式", 'send')
@@ -823,7 +822,7 @@ class Macro:
             elif sim < similarity and '分支N' in data:
                 self.execute_macro(data['分支N'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 图像匹配 报错信息：{e}')
+            logger.error(f'功能 图像匹配 报错信息：{e}')
             raise e
 
     def text_ocr(self, data: dict):
@@ -832,16 +831,16 @@ class Macro:
         Args:
             data (dict): 文字识别数据
         """
-        self.logger.info(f'功能 文字识别 data：{data}')
+        logger.info(f'功能 文字识别 data：{data}')
         try:
             target_text = data.get("目标文本", 'None')
             if 'None' in target_text:
-                self.logger.error(f'功能 文字识别 错误信息：目标文本参数错误，预期字符串，当前数据：{data}')
+                logger.error(f'功能 文字识别 错误信息：目标文本参数错误，预期字符串，当前数据：{data}')
                 return
 
             pattern = data.get("模式", 'all')
             if pattern not in ['all', 'any']:
-                self.logger.error(f'功能 文字识别 错误信息：模式参数错误，预期all或any，当前数据：{data}')
+                logger.error(f'功能 文字识别 错误信息：模式参数错误，预期all或any，当前数据：{data}')
                 return
 
             key_mouse_mode = data.get("键鼠模式", 'send')
@@ -880,7 +879,7 @@ class Macro:
             elif not flag and '分支N' in data:
                 self.execute_macro(data['分支N'], key_mouse_mode)
         except Exception as e:
-            self.logger.error(f'功能 文字识别 报错信息：{e}')
+            logger.error(f'功能 文字识别 报错信息：{e}')
             raise e
 
 
@@ -897,7 +896,7 @@ class Macro:
                     if self.key_name == data['触发键'] and data['功能类型'] not in ['组合', '映射']:
                         function = self.function_mapping_down.get(
                             data['功能类型'],
-                            lambda _: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                            lambda _: logger.error(f'功能 {data["功能类型"]} 不存在')
                         )
                         Thread(target=function, args=(data,)).start()
                         return
@@ -915,11 +914,11 @@ class Macro:
                             mapping = '映射2'
                             mapping_n = '映射1'
                         else:
-                            self.logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失，当前数据：{data}')
+                            logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失，当前数据：{data}')
                             return False
                         function = self.function_mapping_down.get(
                             data['功能类型'],
-                            lambda _, __: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                            lambda _, __: logger.error(f'功能 {data["功能类型"]} 不存在')
                         )
                         if data['功能类型'] == '组合':
                             args = data[auxiliary], data[auxiliary_n]
@@ -928,7 +927,7 @@ class Macro:
                         Thread(target=function, args=(data, args)).start()
                         return
         except Exception as e:
-            self.logger.error(f'功能 {data["功能类型"]} 报错信息：{e}')
+            logger.error(f'功能 {data["功能类型"]} 报错信息：{e}')
             return False
 
     def _switch_toggle(self):
@@ -944,9 +943,9 @@ class Macro:
                         title_name=self.macro_file[0]['窗口标题'],
                         class_name=self.macro_file[0]['窗口类名']
                     )
-                    self.logger.info(f'连接窗口 成功 句柄信息：{self.macro_window.hwnd}')
+                    logger.info(f'连接窗口 成功 句柄信息：{self.macro_window.hwnd}')
                 except Exception as e:
-                    self.logger.error(f'连接窗口 报错信息：{e}')
+                    logger.error(f'连接窗口 报错信息：{e}')
                     self.macro_window = None
                     self.macro_switch = None
                     return False
@@ -961,14 +960,14 @@ class Macro:
                     self.api.disable_json_editor()
                     self.api.save_json_file()
                 except Exception as e:
-                    self.logger.error(f'切换宏开关时调用API失败: {e}')
+                    logger.error(f'切换宏开关时调用API失败: {e}')
         else:
             self.restore_mouse_icon()               # 恢复鼠标图标
             if self.api:
                 try:
                     self.api.enable_json_editor()   # 启用编辑器
                 except Exception as e:
-                    self.logger.error(f'切换宏开关时调用API失败: {e}')
+                    logger.error(f'切换宏开关时调用API失败: {e}')
             self.macro_window = None                # 清除窗口对象
             self.match.clear_cache_images()         # 清除缓存图像
 
@@ -987,12 +986,12 @@ class Macro:
             self.last_key_pressed = self.key_name
 
         # if not self.utils_path.is_frozen():
-        #     self.logger.info(f'键鼠监听器 按键按下：{self.key_name}')
+        #     logger.info(f'键鼠监听器 按键按下：{self.key_name}')
 
         # 宏开关切换
         if self.key_name == self.macro_switch_key and self.macro_file:
             self.macro_switch = not self.macro_switch
-            self.logger.info(f'宏开关切换：{self.macro_switch}')
+            logger.info(f'宏开关切换：{self.macro_switch}')
             self._switch_toggle()
 
         # 按键映射执行器触发 (scrcpy 触摸事件)
@@ -1001,7 +1000,7 @@ class Macro:
             if self.key_mapping_executor and self.key_mapping_executor.enabled:
                 self.key_mapping_executor.on_key_down(self.key_name)
         except Exception as e:
-            self.logger.error(f"按键映射执行器 on_key_down 异常: {e}", exc_info=True)
+            logger.error(f"按键映射执行器 on_key_down 异常: {e}", exc_info=True)
 
         # 宏功能触发
         if self.macro_switch and self.key_name not in self.down_state_keys:
@@ -1022,7 +1021,7 @@ class Macro:
             self.key_name = event.button
 
         # if not self.utils_path.is_frozen():
-        #     self.logger.info(f'键鼠监听器 按键弹起：{self.key_name}')
+        #     logger.info(f'键鼠监听器 按键弹起：{self.key_name}')
 
         # 按键映射执行器弹起事件 (scrcpy 触摸释放)
         # 异常保护：避免钩子线程因按键映射执行器崩溃而全局失效
@@ -1030,7 +1029,7 @@ class Macro:
             if self.key_mapping_executor and self.key_mapping_executor.enabled:
                 self.key_mapping_executor.on_key_up(self.key_name)
         except Exception as e:
-            self.logger.error(f"按键映射执行器 on_key_up 异常: {e}", exc_info=True)
+            logger.error(f"按键映射执行器 on_key_up 异常: {e}", exc_info=True)
 
         # 宏功能触发
         if self.macro_switch and self.key_name in self.down_state_keys:
@@ -1041,7 +1040,7 @@ class Macro:
                     if self.key_name == data['触发键'] and data['功能类型'] == '跟随':
                         function = self.function_mapping_up.get(
                             data['功能类型'],
-                            lambda: self.logger.error(f'功能 {data["功能类型"]} 不存在')
+                            lambda: logger.error(f'功能 {data["功能类型"]} 不存在')
                         )
                         Thread(target=function, args=(data,)).start()
 

@@ -63,10 +63,10 @@ class FrontendApi:
             except Exception as e:
                 logger.error(f'toggle_screencast_fullscreen 执行失败: {e}')
 
-    def _notify_keyboard_state(self, shown: bool, just_hidden: bool):
+    def _notify_input_state(self, shown: bool, just_hidden: bool):
         try:
             if self._is_window_valid():
-                js = f"window.__onKeyboardState && window.__onKeyboardState({str(shown).lower()},{str(just_hidden).lower()})"
+                js = f"window.__onInputState && window.__onInputState({str(shown).lower()},{str(just_hidden).lower()})"
                 self._window.evaluate_js(js)
         except Exception:
             pass
@@ -83,5 +83,18 @@ class FrontendApi:
             else:
                 js_code = 'window.setCameraMode(false)'
             self._window.evaluate_js(js_code)
+        except Exception:
+            pass
+
+    def poll_input(self):
+        """Poll input from frontend and send to device."""
+        if not self._is_window_valid():
+            return
+        try:
+            js = "document.getElementById('ime-input')?.value || ''"
+            cur = self._window.evaluate_js(js)
+            if cur:
+                services.scrcpy.send_text(''.join(cur))
+                self._window.evaluate_js("window.__clearImeInput?.()")
         except Exception:
             pass

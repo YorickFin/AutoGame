@@ -1,4 +1,4 @@
-from .executor import KeyMappingExecutor
+from .key_mapping_executor import KeyMappingExecutor
 
 __all__ = [
     'KeyMappingExecutor',
