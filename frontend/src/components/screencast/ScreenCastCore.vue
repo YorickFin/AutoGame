@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onBeforeUnmount, nextTick, type Ref } from "vue"
-import { callApi } from "../composables/useScreencastApi"
+import { callApi } from "../../composables/useScreencastApi"
 import ScreenCastToolbar from "./ScreenCastToolbar.vue"
 import ScreenCastKeyMapping from "./ScreenCastKeyMapping.vue"
 import "./ScreenCastCore.css"
