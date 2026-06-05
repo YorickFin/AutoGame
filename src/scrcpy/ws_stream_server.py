@@ -7,9 +7,6 @@ from typing import Any
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from ..services import services
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,10 +22,6 @@ class WsStreamServer:
     """
 
     def __init__(self) -> None:
-        try:
-            self._loop = services.scrcpy_manager._loop
-        except AttributeError:
-            self._loop = asyncio.get_running_loop()
         self._last_session_event: str | None = None
         self._session_cached: asyncio.Event = asyncio.Event()
         self._cached_keyframe_meta: bytes | None = None

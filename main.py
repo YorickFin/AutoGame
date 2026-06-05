@@ -11,7 +11,7 @@ from src.services import services
 from src.utils import WebView2Checker, UtilsFile, utils_path, ocr
 from src.macro import Macro
 from src.key_mapping import KeyMappingExecutor
-from src.scrcpy import ScrcpyManager
+from src.scrcpy import ScrcpyManager, WsStreamServer
 
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ class AutoGameApp:
         services.utils_path = utils_path
         services.ocr = ocr
         services.utils_file = UtilsFile()
+        services.ws_stream_server = WsStreamServer()
         services.scrcpy_manager = ScrcpyManager()
         services.api = Api()
         services.macro = Macro()

@@ -6,10 +6,11 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .ws_stream_server import WsStreamServer
 from autoxkit.android.adb import AdbServerLauncher
 from autoxkit.android import AudioVideoEvent, ScrcpyClient, ScrcpyOptions, StreamKind
 from autoxkit.android.control import PointerManager, ACTION_DOWN
+
+from ..services import services
 
 
 logger = logging.getLogger(__name__)
@@ -96,12 +97,19 @@ class ScrcpyManager:
         self._thread.start()
         self._client: ScrcpyClient | None = None
         self._pump_task: asyncio.Task[None] | None = None
-        self._ws_server: WsStreamServer | None = None
         self._last_session: tuple[int, int] | None = None
         self._launcher: AdbServerLauncher | None = None
         self._address: str | None = None
         self._pointer_manager = PointerManager()
         self._serial: str | None = None
+
+    @property
+    def _ws_stream_server(self):
+        """懒加载：真正需要时才从 services 中获取。"""
+        try:
+            return services.ws_stream_server
+        except AttributeError:
+            return None
 
     # ------------------------------------------------------------------ #
     # Public API (called from pywebview thread)
@@ -126,8 +134,8 @@ class ScrcpyManager:
 
     def get_ws_port(self) -> int:
         """Return the WebSocket stream server port, or -1 if not running."""
-        if self._ws_server is not None:
-            return self._ws_server.port
+        if self._ws_stream_server is not None:
+            return self._ws_stream_server.port
         return -1
 
     def start_ws_stream(self) -> int:
@@ -139,14 +147,12 @@ class ScrcpyManager:
         return self._submit(self._stop_ws_stream())
 
     async def _start_ws_stream(self) -> int:
-        self._ws_server = WsStreamServer()
-        port = await self._ws_server.start()
+        port = await self._ws_stream_server.start()
         return port
 
     async def _stop_ws_stream(self) -> None:
-        if self._ws_server is not None:
-            await self._ws_server.stop()
-            self._ws_server = None
+        if self._ws_stream_server is not None:
+            await self._ws_stream_server.stop()
 
     def send_touch(self, action: int, x: int, y: int, width: int, height: int) -> dict[str, Any]:
         return self._submit(self._send_touch(action, x, y, width, height))
@@ -383,27 +389,27 @@ class ScrcpyManager:
 
     async def _forward_to_ws(self, event: AudioVideoEvent) -> None:
         """Forward an AudioVideoEvent to the WebSocket stream server."""
-        if self._ws_server is None:
+        if self._ws_stream_server is None:
             return
 
         codec = event.codec.label if event.codec else None
 
         if event.kind is StreamKind.SESSION and event.session is not None:
             self._last_session = (event.session.width, event.session.height)
-            await self._ws_server.send_event("session", {
+            await self._ws_stream_server.send_event("session", {
                 "codec": codec,
                 "width": event.session.width,
                 "height": event.session.height,
                 "clientResized": event.session.client_resized,
             })
         elif event.kind is StreamKind.VIDEO and event.payload:
-            await self._ws_server.send_event(
+            await self._ws_stream_server.send_event(
                 "video",
                 {"pts": event.pts, "keyFrame": event.key_frame, "config": event.config},
                 event.payload,
             )
         elif event.kind is StreamKind.AUDIO and event.payload:
-            await self._ws_server.send_event(
+            await self._ws_stream_server.send_event(
                 "audio",
                 {"pts": event.pts},
                 event.payload,

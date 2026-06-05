@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from src.api import Api
     from src.key_mapping import KeyMappingExecutor
     from src.macro import Macro
-    from src.scrcpy import ScrcpyManager
+    from src.scrcpy import ScrcpyManager, WsStreamServer
     from src.utils import UtilsFile, utils_path
 
 
@@ -12,6 +12,7 @@ class Services:
     api: 'Api'
     macro: 'Macro'
     scrcpy_manager: 'ScrcpyManager'
+    ws_stream_server: 'WsStreamServer'
     key_mapping_executor: 'KeyMappingExecutor'
     utils_file: 'UtilsFile'
     utils_path: 'utils_path'
