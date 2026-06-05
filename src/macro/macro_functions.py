@@ -2,21 +2,30 @@ import time
 import logging
 import numpy as np
 
+from ..services import services
+
+
+
 logger = logging.getLogger(__name__)
 
 
 class MacroFunctions:
-    def __init__(self, executor, ocr_service, match_service, utils_path):
-        self.executor = executor
-        self.ocr = ocr_service
-        self.match = match_service
-        self.utils_path = utils_path
-        self.base_res_path = utils_path.base_res_path
-        self.base_user_path = utils_path.base_user_path
-        self.macro_window = None
 
-    def set_macro_window(self, window):
-        self.macro_window = window
+    @property
+    def executor(self):
+        return services.macro.executor
+
+    @property
+    def macro_window(self):
+        return services.macro.macro_window
+
+    @property
+    def _ocr(self):
+        return services.macro._ocr
+
+    @property
+    def match(self):
+        return services.macro.match
 
     def get_screen_size(self):
         import ctypes
@@ -348,7 +357,7 @@ class MacroFunctions:
                 rect = tuple(map(int, data.get('匹配范围', f"0 0 {screen_width} {screen_height}").strip().split()))
                 target_image = self.match.screenshot(rect=rect)
 
-            ocr_result = self.ocr(target_image)
+            ocr_result = self._ocr(target_image)
 
             x, y, flag = 0, 0, False
             for line in ocr_result:

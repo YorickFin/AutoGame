@@ -83,10 +83,10 @@ class ScrcpyManager:
     "Numpad7": 14,
     "Numpad8": 15,
     "Numpad9": 16,
-    "Space": 62,
-    "Back": 67,
     "Decimal": 56,
+    "Space": 62,
     "Enter": 66,
+    "Back": 67,
     }
 
 

@@ -4,6 +4,8 @@ from threading import Thread
 from autoxkit.mousekey import Mouse, KeyBoard
 from autoxkit.constants import Hex_Key_Code
 
+from ..services import services
+
 logger = logging.getLogger(__name__)
 
 HKC = Hex_Key_Code
@@ -31,14 +33,21 @@ class MacroExecutor:
         self.mouse = Mouse()
         self.keyboard = KeyBoard()
 
-        self.macro_window = None
-        self.macro_switch = True
+    @property
+    def macro_switch(self):
+        return services.macro.macro_switch
 
-    def set_macro_window(self, window):
-        self.macro_window = window
+    @property
+    def macro_window(self):
+        return services.macro.macro_window
 
-    def set_macro_switch(self, switch):
-        self.macro_switch = switch
+    @property
+    def macro_file(self):
+        return services.macro.macro_file
+
+    @property
+    def function_mapping_down(self):
+        return services.macro.function_mapping_down
 
     def execute_macro(self, instruction: str, key_mouse_mode: str = 'send'):
         try:
@@ -102,22 +111,24 @@ class MacroExecutor:
                     if self.macro_window:
                         self.macro_window.send_mouse_click(button=button, mode=key_mouse_mode)
                     else:
-                        function = None
-                        for data in self.macro_file:
-                            if '名称' not in data:
-                                continue
-                            elif data['名称'] == action_list[0] and data['功能类型'] in self.function_names:
-                                function = self.function_mapping_down.get(
-                                    data['功能类型'],
-                                    lambda _: logger.error(f'功能 {data["功能类型"]} 不存在')
-                                )
-                                break
-                        if function:
-                            Thread(target=function, args=(data,)).start()
-                        else:
-                            self._raise_error(f'单击指令参数错误：{action_list}')
+                        self.mouse.mouse_click(button=button)
                 else:
-                    self._raise_error(f'单击指令参数错误：{action_list}')
+                    function = None
+                    matched_data = None
+                    for data in self.macro_file:
+                        if '名称' not in data:
+                            continue
+                        elif data['名称'] == action_list[0] and data['功能类型'] in self.function_names:
+                            function = self.function_mapping_down.get(
+                                data['功能类型'],
+                                lambda _: logger.error(f'功能 {data["功能类型"]} 不存在')
+                            )
+                            matched_data = data
+                            break
+                    if function:
+                        Thread(target=function, args=(matched_data,)).start()
+                    else:
+                        self._raise_error(f'单击指令参数错误：{action_list}')
             return True
         except Exception:
             self._raise_error(f'单击指令参数错误：{action_list}')

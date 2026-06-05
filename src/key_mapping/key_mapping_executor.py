@@ -64,7 +64,7 @@ class KeyMappingExecutor:
         # Handle input keycodes
         key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
         if self._input.input_shown:
-            if key_code == 67:
+            if key_code in (62, 66, 67):
                 self._scrcpy_manager.send_keycode(key_code, 0)
             return True
         elif not self._input.input_shown:
@@ -93,7 +93,7 @@ class KeyMappingExecutor:
         if self._input.input_shown:
             if self._api:
                 self._api.poll_input()
-            if key_code == 67:
+            if key_code in (62, 66, 67):
                 self._scrcpy_manager.send_keycode(key_code, 1)
             return True
         elif not self._input.input_shown:

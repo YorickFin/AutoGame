@@ -13,9 +13,6 @@ logger = logging.getLogger(__name__)
 
 class Macro:
     def __init__(self):
-        self.base_res_path = self._utils_path.base_res_path
-        self.base_user_path = self._utils_path.base_user_path
-
         self.macro_window = None
         self.macro_switch = False
         self.macro_switch_key = None
@@ -28,9 +25,8 @@ class Macro:
         self.last_key_pressed = None
 
         self.match = Match()
-
         self.executor = MacroExecutor()
-        self.functions = MacroFunctions(self.executor, self._ocr, self.match, self._utils_path)
+        self.functions = MacroFunctions()
 
         self.hook_listener = HookListener()
         self.hook_listener.add_handler('keydown', self._hook_all_down)
@@ -157,11 +153,6 @@ class Macro:
         screen_height = user32.GetSystemMetrics(1)
         return screen_width, screen_height
 
-    def _update_window_dependencies(self):
-        self.executor.set_macro_window(self.macro_window)
-        self.executor.set_macro_switch(self.macro_switch)
-        self.functions.set_macro_window(self.macro_window)
-
     def _macro_trigger(self):
         try:
             for data in self.macro_file:
@@ -218,7 +209,7 @@ class Macro:
                     self.macro_switch = None
                     return False
 
-            if self.macro_file[0].get('鼠标图标改变', '否') == '是':
+            if self.macro_file[0].get('鼠标图标更改', '否') == '是':
                 self.set_mouse_icon()
 
             if self._api:
@@ -236,8 +227,6 @@ class Macro:
                     logger.error(f'切换宏开关时调用API失败: {e}')
             self.macro_window = None
             self.match.clear_cache_images()
-
-        self._update_window_dependencies()
 
     def _hook_all_down(self, event: KeyEvent | MouseEvent):
         if isinstance(event, KeyEvent):
