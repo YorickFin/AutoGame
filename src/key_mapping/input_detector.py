@@ -32,7 +32,7 @@ class InputDetector:
         return self._input_shown
 
     @input_shown.setter
-    def input_shown(self, value: bool | None) -> None:
+    def input_shown(self, value: bool | None):
         self._input_shown = value
 
     def read_and_clear_just_hidden(self) -> bool:

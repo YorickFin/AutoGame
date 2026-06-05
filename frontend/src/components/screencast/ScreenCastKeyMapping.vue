@@ -8,14 +8,14 @@
     @contextmenu.prevent
   >
     <div class="km-center-wrapper">
-      <div class="key-mapping-canvas" ref="kmCanvasRef" :style="screenStyle" @mousedown.left.stop="onCanvasMouseDown($event)">
+      <div class="key-mapping-canvas" ref="kmCanvasRef" :style="screenStyle" @mousedown.left.stop="onCanvasMouseDown($event)" @contextmenu.prevent.stop="onCanvasRightClick($event)">
         <!-- Single controls -->
         <div v-for="ctrl in controls" :key="ctrl.id"
              class="key-control"
-             :class="{ listening: editingControlId === ctrl.id }"
+             :class="{ listening: editingControlId === ctrl.id, 'is-mouse': ctrl.isMouse }"
              :style="ctrlStyle(ctrl)"
              @mousedown.left.stop="startDrag($event, ctrl)"
-             @click.stop="editControl(ctrl)">
+             @mouseup.left.stop="onControlMouseUp($event, ctrl)">
           <div class="control-circle">
             <span class="control-label" :style="ctrlLabelStyle(ctrl)">{{ ctrl.label || (editingControlId === ctrl.id ? '...' : '?') }}</span>
             <button class="control-close" @click.stop="removeControl(ctrl.id)" :style="controlCloseStyle(ctrl)">&times;</button>
@@ -46,7 +46,7 @@
              :class="{ listening: editingControlId === swp.id }"
              :style="ctrlStyle(swp)"
              @mousedown.left.stop="startDrag($event, swp, 'swipe')"
-             @click.stop="editControl(swp)">
+             @mouseup.left.stop="onControlMouseUp($event, swp)">
           <div class="control-circle">
             <span class="control-label" :style="ctrlLabelStyle(swp)">{{ swp.label || '滑动' }}</span>
             <button class="control-close" @click.stop="removeControl(swp.id)" :style="controlCloseStyle(swp)">&times;</button>
@@ -67,7 +67,7 @@
              :class="{ listening: editingControlId === cam.id }"
              :style="ctrlStyle(cam)"
              @mousedown.left.stop="startDrag($event, cam, 'camera')"
-             @click.stop="editControl(cam)">
+             @mouseup.left.stop="onControlMouseUp($event, cam)">
           <div class="control-circle camera-circle">
             <span class="control-label" :style="ctrlLabelStyle(cam)">{{ cam.label || '3D' }}</span>
             <button class="control-close" @click.stop="removeControl(cam.id)" :style="controlCloseStyle(cam)">&times;</button>
@@ -77,8 +77,10 @@
     </div>
     <div v-if="contextMenu.show" class="context-menu"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
-      <div @click="createDirectionKey">方向键位(WASD)</div>
+      <div @click="createMouseLeft">鼠标左键</div>
+      <div @click="createMouseRight">鼠标右键</div>
       <div @click="startSwipeRecording">滑动键位</div>
+      <div @click="createDirectionKey">方向轮盘</div>
       <div @click="createCameraControl">3D视角控制</div>
     </div>
   </div>
@@ -206,6 +208,7 @@ const cameraSensitivity = ref(1.0)  // 视角灵敏度
 let dragTarget: any = null
 let dragOffsetX = 0
 let dragOffsetY = 0
+let dragStartPos = { x: 0, y: 0 }
 let resizeTarget: any = null
 let resizeStartSize = 0
 let resizeStartMouse = { x: 0, y: 0 }
@@ -383,7 +386,7 @@ async function saveCurrentMapping() {
     scaleLandscape: scaleLandscape.value,
     scalePortrait: scalePortrait.value,
     cameraSensitivity: cameraSensitivity.value,
-    controls: controls.value.map((c: any) => ({ id: c.id, type: "single", key: c.key, label: c.label, x: c.x, y: c.y, radius: c.radius })),
+    controls: controls.value.map((c: any) => ({ id: c.id, type: "single", key: c.key, label: c.label, isMouse: !!c.isMouse, x: c.x, y: c.y, radius: c.radius })),
     dpad: dpads.value.map((d: any) => ({ id: d.id, type: "dpad", x: d.x, y: d.y, size: d.size, keys: d.keys })),
     swipes: swipes.value.map((s: any) => ({ id: s.id, type: "swipe", label: s.label, key: s.key || "", x: s.x, y: s.y, radius: s.radius, path: s.path })),
     camera: cameras.value.map((cam: any) => ({ id: cam.id, type: "camera", key: cam.key, label: cam.label, x: cam.x, y: cam.y, radius: cam.radius })),
@@ -445,6 +448,54 @@ function onCanvasMouseDown(e: MouseEvent) {
   const pos = toNormalizedCoords(e.clientX, e.clientY)
   const ctrl = { id: controlId("ctrl"), key: "", label: "", x: pos.x, y: pos.y, radius: 12 }
   controls.value.push(ctrl); editingControlId.value = ctrl.id; setupKeyCapture()
+}
+
+function onCanvasRightClick(e: MouseEvent) {
+  contextMenu.value = { show: true, x: e.clientX, y: e.clientY }
+}
+
+function createMouseLeft() {
+  contextMenu.value.show = false
+  if (!kmCanvasRef.value) return
+  const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
+  const ctrl = {
+    id: controlId("mbtn"),
+    key: "MLeft",
+    label: "MLeft",
+    isMouse: true,
+    x: norm.x,
+    y: norm.y,
+    radius: 12,
+  }
+  controls.value.push(ctrl)
+  autoSave()
+}
+
+function createMouseRight() {
+  contextMenu.value.show = false
+  if (!kmCanvasRef.value) return
+  const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
+  const ctrl = {
+    id: controlId("mbtn"),
+    key: "MRight",
+    label: "MRight",
+    isMouse: true,
+    x: norm.x,
+    y: norm.y,
+    radius: 12,
+  }
+  controls.value.push(ctrl)
+  autoSave()
+}
+
+function onControlMouseUp(e: MouseEvent, ctrl: any) {
+  const dx = e.clientX - dragStartPos.x
+  const dy = e.clientY - dragStartPos.y
+  const distance = Math.sqrt(dx * dx + dy * dy)
+  dragTarget = null
+  if (distance > 5) return
+  if (ctrl && ctrl.isMouse) return
+  editControl(ctrl)
 }
 
 function onOverlayRightClick(e: MouseEvent) {
@@ -529,6 +580,7 @@ function onOverlayMouseUp(e: MouseEvent) {
 }
 
 function startDrag(e: MouseEvent, ctrl: any, _type = "single") {
+  dragStartPos = { x: e.clientX, y: e.clientY }
   if (!kmCanvasRef.value || editingControlId.value) return
   const norm = toNormalizedCoords(e.clientX, e.clientY)
   dragTarget = ctrl; dragOffsetX = norm.x - ctrl.x; dragOffsetY = norm.y - ctrl.y
@@ -558,16 +610,38 @@ function onResizeMouseUp() {
 }
 
 function editControl(ctrl: any) {
-  if (editingControlId.value) return
-  editingControlId.value = ctrl.id; setupKeyCapture()
+  if (editingControlId.value === ctrl.id) {
+    editingControlId.value = null
+    teardownKeyCapture()
+    if (!ctrl.key) {
+      ctrl.label = '?'
+    }
+    return
+  }
+  editingControlId.value = ctrl.id
+  editingDpadId.value = null
+  editingDpadDir.value = null
+  setupKeyCapture()
 }
 
 function editDpadKey(dpad: any, dir: string) {
-  if (editingControlId.value) return
-  editingDpadId.value = dpad.id; editingDpadDir.value = dir; setupKeyCapture()
+  if (editingDpadId.value === dpad.id && editingDpadDir.value === dir) {
+    editingDpadId.value = null
+    editingDpadDir.value = null
+    teardownKeyCapture()
+    return
+  }
+  editingDpadId.value = dpad.id
+  editingDpadDir.value = dir
+  editingControlId.value = null
+  setupKeyCapture()
 }
 
 function removeControl(id: string) {
+  editingControlId.value = null
+  editingDpadId.value = null
+  editingDpadDir.value = null
+  teardownKeyCapture()
   controls.value = controls.value.filter(c => c.id !== id)
   dpads.value = dpads.value.filter(d => d.id !== id)
   const removedSwipe = swipes.value.find(s => s.id === id)
@@ -602,6 +676,9 @@ async function setupKeyCapture() {
 }
 
 async function processCapturedKey(key: string) {
+  if (key === "MLeft" || key === "MRight") {
+    return
+  }
   if (editingControlId.value) {
     const ctrl = [...controls.value, ...swipes.value, ...cameras.value].find(c => c.id === editingControlId.value)
     if (ctrl) {

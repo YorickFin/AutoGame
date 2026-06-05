@@ -61,6 +61,16 @@ class KeyMappingExecutor:
         if not self._enabled or not self._active_mapping:
             return False
 
+        # Handle input keycodes
+        key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if self._input.input_shown:
+            if key_code == 67:
+                self._scrcpy_manager.send_keycode(key_code, 0)
+            return True
+        elif not self._input.input_shown:
+            if key_code:
+                self._scrcpy_manager.send_keycode(key_code, 0)
+
         # Check camera controls first (toggle mode)
         for cam in self._active_mapping.get("camera", []):
             if cam.get("key") == key_name:
@@ -71,25 +81,12 @@ class KeyMappingExecutor:
         if self._button_mapping.on_key_down(key_name):
             return True
 
-        # Handle input keycodes
-        key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
-        if self._input.input_shown and key_code == 67:
-            self._scrcpy_manager.send_keycode(key_code, 0)
-            return True
-        elif not self._input.input_shown and key_code:
-            self._scrcpy_manager.send_keycode(key_code, 0)
-            return True
-
         return False
 
     def on_key_up(self, key_name):
         """Handle key release - delegate to appropriate module."""
         if not self._enabled or not self._active_mapping:
             return False
-
-        # Let button mapping handle controls and dpad
-        if self._button_mapping.on_key_up(key_name):
-            return True
 
         # Handle input keycodes
         key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
@@ -99,8 +96,12 @@ class KeyMappingExecutor:
             if key_code == 67:
                 self._scrcpy_manager.send_keycode(key_code, 1)
             return True
-        elif not self._input.input_shown and key_code:
-            self._scrcpy_manager.send_keycode(key_code, 1)
+        elif not self._input.input_shown:
+            if key_code:
+                self._scrcpy_manager.send_keycode(key_code, 1)
+
+        # Let button mapping handle controls and dpad
+        if self._button_mapping.on_key_up(key_name):
             return True
 
         return False
