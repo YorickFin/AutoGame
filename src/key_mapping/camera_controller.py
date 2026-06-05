@@ -12,7 +12,6 @@ class CameraController:
     """Controls 3D view mode by polling mouse position and sending touch deltas."""
 
     def __init__(self):
-        self._scrcpy_manager = services.scrcpy_manager
         self._active = False
         self._config = None
         self._center = (0.5, 0.5)
@@ -32,6 +31,14 @@ class CameraController:
     @property
     def active(self) -> bool:
         return self._active
+
+    @property
+    def _scrcpy_manager(self):
+        return services.scrcpy_manager
+
+    @property
+    def _position(self):
+        return services.position
 
     def start(self, config: dict, screen_width: int, screen_height: int, sensitivity: float):
         """Enter camera mode with given configuration."""
@@ -125,7 +132,7 @@ class CameraController:
 
         while not self._poll_stop.is_set():
             try:
-                mx, my = services.position
+                mx, my = self._position
             except Exception:
                 time.sleep(0.005)
                 continue

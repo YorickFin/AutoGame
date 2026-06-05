@@ -9,124 +9,117 @@ from ..services import services
 logger = logging.getLogger(__name__)
 
 
-def _get_service(name, default=None):
-    try:
-        return getattr(services, name)
-    except AttributeError:
-        return default
-
-
 class BackendApi:
     def __init__(self):
         self._no_key_names = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
         self._maximized = False
 
     @property
-    def macro(self):
+    def _macro(self):
         return services.macro
 
     @property
-    def utils_file(self):
+    def _utils_file(self):
         return services.utils_file
 
     @property
-    def scrcpy_manager(self):
+    def _scrcpy_manager(self):
         return services.scrcpy_manager
 
     @property
-    def key_mapping_executor(self):
-        return _get_service('key_mapping_executor')
+    def _key_mapping_executor(self):
+        return services.key_mapping_executor
 
     def get_config_file(self):
-        config = self.utils_file.load_config_file()
-        self.macro.set_macro_switch_key(config['macroSwitch'])
+        config = self._utils_file.load_config_file()
+        self._macro.set_macro_switch_key(config['macroSwitch'])
         return config
 
     def save_config_file(self, config):
-        self.macro.set_macro_switch_key(config['macroSwitch'])
-        return self.utils_file.save_config_file(config)
+        self._macro.set_macro_switch_key(config['macroSwitch'])
+        return self._utils_file.save_config_file(config)
 
     def get_phone_input_state(self):
-        km = self.key_mapping_executor
+        km = self._key_mapping_executor
         return {
             "keyboard_shown": km.keyboard_shown if km else None,
             "just_hidden": km.read_and_clear_just_hidden() if km else False,
         }
 
     def get_macro_files(self):
-        return self.utils_file.get_macro_files()
+        return self._utils_file.get_macro_files()
 
     def load_macrofile(self, file_name: str):
-        return self.utils_file.load_macro_file(file_name)
+        return self._utils_file.load_macro_file(file_name)
 
     def save_macrofile(self, file_name: str, macro_file: str):
-        return self.utils_file.save_macro_file(file_name, macro_file)
+        return self._utils_file.save_macro_file(file_name, macro_file)
 
     def create_new_file(self):
-        return self.utils_file.create_new_file()
+        return self._utils_file.create_new_file()
 
     def rename_file(self, old_name: str, new_name: str):
-        return self.utils_file.rename_file(old_name, new_name)
+        return self._utils_file.rename_file(old_name, new_name)
 
     def open_folder(self, file_name: str):
-        return self.utils_file.open_folder(file_name)
+        return self._utils_file.open_folder(file_name)
 
     def delete_file(self, file_name: str):
-        return self.utils_file.delete_file(file_name)
+        return self._utils_file.delete_file(file_name)
 
     def clear_memory_logs(self):
-        return self.utils_file.clear_memory_logs()
+        return self._utils_file.clear_memory_logs()
 
     def has_new_error(self):
-        return self.utils_file.has_new_error()
+        return self._utils_file.has_new_error()
 
     def clear_new_error_flag(self):
-        return self.utils_file.clear_new_error_flag()
+        return self._utils_file.clear_new_error_flag()
 
     def get_macro_switch_key_name(self):
-        key_name = self.macro.get_key_name()
+        key_name = self._macro.get_key_name()
         if key_name in self._no_key_names:
             return False
         return key_name
 
     def get_key_name(self):
-        return self.macro.get_key_name()
+        return self._macro.get_key_name()
 
     def start_key_listener(self):
-        self.macro.start_listening_key()
+        self._macro.start_listening_key()
         return {"ok": True}
 
     def stop_key_listener(self):
-        self.macro.stop_listening_key()
+        self._macro.stop_listening_key()
         return {"ok": True}
 
     def get_pressed_key(self):
-        key = self.macro.get_last_key()
+        key = self._macro.get_last_key()
         return {"key": key}
 
     def set_focus_state(self, focused):
-        if self.key_mapping_executor:
-            self.key_mapping_executor.set_focus_state(focused)
+        if self._key_mapping_executor:
+            self._key_mapping_executor.set_focus_state(focused)
         return {"ok": True}
 
     def get_mouse_position(self):
-        x, y = self.macro.get_mouse_position()
+        x, y = self._macro.get_mouse_position()
         return f'{x}, {y}'
 
     def get_pixel_color(self):
-        return self.macro.get_pixel_color()
+        return self._macro.get_pixel_color()
 
     def get_memory_logs(self):
-        return self.utils_file.get_memory_logs()
+        return self._utils_file.get_memory_logs()
 
     def get_memory_logs_count(self):
-        return self.utils_file.get_memory_logs_count()
+        return self._utils_file.get_memory_logs_count()
 
     def get_memory_logs_since(self, index):
-        return self.utils_file.get_memory_logs_since(index)
+        return self._utils_file.get_memory_logs_since(index)
 
     def get_app_info(self):
-        return self.utils_file._load_project_info()
+        return self._utils_file._load_project_info()
 
     def minimize(self):
         logger.info('Minimize called')
@@ -141,7 +134,7 @@ class BackendApi:
         logger.info('Close called')
         if self._window:
             try:
-                config = self.utils_file.load_config_file()
+                config = self._utils_file.load_config_file()
                 minimize_to_tray = config.get('minimizeToTray', True)
                 if minimize_to_tray:
                     logger.info('Hiding window to tray')
@@ -170,7 +163,7 @@ class BackendApi:
         return False
 
     def get_screencast_ratio(self):
-        width, height = self.macro.get_screen_size()
+        width, height = self._macro.get_screen_size()
         width, height = int(width), int(height)
         gcd = math.gcd(width, height)
         width_ratio = width // gcd
@@ -191,117 +184,117 @@ class BackendApi:
             return False
 
     def scrcpy_start(self, serial=None, config=None):
-        return self.scrcpy_manager.start(serial, config)
+        return self._scrcpy_manager.start(serial, config)
 
     def scrcpy_stop(self):
-        return self.scrcpy_manager.stop()
+        return self._scrcpy_manager.stop()
 
     def scrcpy_status(self):
-        return self.scrcpy_manager.status()
+        return self._scrcpy_manager.status()
 
     def scrcpy_get_ws_port(self):
-        return self.scrcpy_manager.get_ws_port()
+        return self._scrcpy_manager.get_ws_port()
 
     def scrcpy_send_touch(self, action, x, y, width, height):
-        return self.scrcpy_manager.send_touch(action, x, y, width, height)
+        return self._scrcpy_manager.send_touch(action, x, y, width, height)
 
     def scrcpy_send_keycode(self, keycode, action=0):
-        return self.scrcpy_manager.send_keycode(keycode, action)
+        return self._scrcpy_manager.send_keycode(keycode, action)
 
     def scrcpy_set_clipboard(self, text):
-        return self.scrcpy_manager.set_clipboard(text)
+        return self._scrcpy_manager.set_clipboard(text)
 
     def scrcpy_send_text(self, text: str):
         logger.info(f"Sending text: {text}")
-        return self.scrcpy_manager.send_text(text)
+        return self._scrcpy_manager.send_text(text)
 
     def scrcpy_switch_to_wireless(self):
-        return self.scrcpy_manager.switch_to_wireless()
+        return self._scrcpy_manager.switch_to_wireless()
 
     def scrcpy_discover_usb_serial(self):
-        return self.scrcpy_manager.discover_usb_serial()
+        return self._scrcpy_manager.discover_usb_serial()
 
     def scrcpy_volume_up(self):
-        return self.scrcpy_manager.volume_up()
+        return self._scrcpy_manager.volume_up()
 
     def scrcpy_volume_down(self):
-        return self.scrcpy_manager.volume_down()
+        return self._scrcpy_manager.volume_down()
 
     def scrcpy_back(self):
-        return self.scrcpy_manager.back()
+        return self._scrcpy_manager.back()
 
     def scrcpy_switch_app(self):
-        return self.scrcpy_manager.switch_app()
+        return self._scrcpy_manager.switch_app()
 
     def scrcpy_home(self):
-        return self.scrcpy_manager.home()
+        return self._scrcpy_manager.home()
 
     def get_key_mapping_files(self):
-        return self.utils_file.get_key_mapping_files()
+        return self._utils_file.get_key_mapping_files()
 
     def load_key_mapping_file(self, file_name):
-        return self.utils_file.load_key_mapping_file(file_name)
+        return self._utils_file.load_key_mapping_file(file_name)
 
     def save_key_mapping_file(self, file_name, data):
-        return self.utils_file.save_key_mapping_file(file_name, data)
+        return self._utils_file.save_key_mapping_file(file_name, data)
 
     def create_key_mapping_file(self):
-        return self.utils_file.create_key_mapping_file()
+        return self._utils_file.create_key_mapping_file()
 
     def rename_key_mapping_file(self, old_name, new_name):
-        return self.utils_file.rename_key_mapping_file(old_name, new_name)
+        return self._utils_file.rename_key_mapping_file(old_name, new_name)
 
     def delete_key_mapping_file(self, file_name):
-        return self.utils_file.delete_key_mapping_file(file_name)
+        return self._utils_file.delete_key_mapping_file(file_name)
 
     def apply_key_mapping(self, file_name):
-        data = self.utils_file.load_key_mapping_file(file_name)
+        data = self._utils_file.load_key_mapping_file(file_name)
         if not data:
             return {"ok": False, "error": "failed to load key mapping"}
-        self.scrcpy_manager.apply_key_mapping(data)
-        if self.key_mapping_executor:
-            self.key_mapping_executor.apply(data)
+        self._scrcpy_manager.apply_key_mapping(data)
+        if self._key_mapping_executor:
+            self._key_mapping_executor.apply(data)
         return {"ok": True}
 
     def remove_key_mapping(self):
-        self.scrcpy_manager.remove_key_mapping()
-        if self.key_mapping_executor:
-            self.key_mapping_executor.remove()
+        self._scrcpy_manager.remove_key_mapping()
+        if self._key_mapping_executor:
+            self._key_mapping_executor.remove()
         return {"ok": True}
 
     def scrcpy_send_normalized_touch(self, action, x, y):
-        return self.scrcpy_manager.send_normalized_touch(action, x, y)
+        return self._scrcpy_manager.send_normalized_touch(action, x, y)
 
     def get_key_mapping_mapped_keys(self):
-        if self.key_mapping_executor:
-            return list(self.key_mapping_executor.get_mapped_keys())
+        if self._key_mapping_executor:
+            return list(self._key_mapping_executor.get_mapped_keys())
         return []
 
     def key_mapping_trigger(self, key_name, action):
-        return self.scrcpy_manager.key_mapping_trigger(key_name, action)
+        return self._scrcpy_manager.key_mapping_trigger(key_name, action)
 
     def key_mapping_swipe(self, path_data):
-        return self.scrcpy_manager.key_mapping_swipe(path_data)
+        return self._scrcpy_manager.key_mapping_swipe(path_data)
 
     def get_android_keycode(self, key_name):
-        return self.scrcpy_manager.key_mapping_get_android_keycode(key_name)
+        return self._scrcpy_manager.key_mapping_get_android_keycode(key_name)
 
     def set_screencast_ratio(self, ratio):
         if ratio == "reset":
-            return self.scrcpy_manager.reset_screen_ratio()
+            return self._scrcpy_manager.reset_screen_ratio()
         if ratio == "monitor":
-            w, h = self.macro.get_screen_size()
+            w, h = self._macro.get_screen_size()
             w, h = int(w), int(h)
             gcd = math.gcd(w, h)
             wr, hr = w // gcd, h // gcd
-            return self.scrcpy_manager.set_screen_ratio(wr, hr)
+            return self._scrcpy_manager.set_screen_ratio(wr, hr)
         if ratio == "16:9":
-            return self.scrcpy_manager.set_screen_ratio(16, 9)
+            return self._scrcpy_manager.set_screen_ratio(16, 9)
         return {"ok": False, "error": f"unknown ratio: {ratio}"}
 
     def has_mleft_key_configured(self):
-        if self.key_mapping_executor:
-            return self.key_mapping_executor.has_mleft_key_configured()
+        if self._key_mapping_executor:
+            return self._key_mapping_executor.has_mleft_key_configured()
         return False
 
     def __dir__(self):

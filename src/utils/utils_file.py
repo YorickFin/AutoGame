@@ -22,7 +22,7 @@ class UtilsFile:
         self._init_config()
 
     @property
-    def macro(self):
+    def _macro(self):
         return services.macro
 
     def _init_config(self):
@@ -114,7 +114,7 @@ class UtilsFile:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 macro_file = json.load(f)
-            self.macro.set_macro_file(macro_file)
+            self._macro.set_macro_file(macro_file)
             return macro_file
         except Exception as e:
             logger.error(f'加载宏文件 报错信息：{e}')
@@ -181,7 +181,7 @@ class UtilsFile:
             if not macro_file:
                 return False
             save_file(macro_file, file_path)
-            self.macro.set_macro_file(macro_file)
+            self._macro.set_macro_file(macro_file)
             return macro_file
         except Exception as e:
             logger.error(f'保存宏文件 报错信息：{e}')
@@ -196,7 +196,7 @@ class UtilsFile:
                 {
                     '备注': '基本信息',
                     '按键更改': '',
-                    '坐标更改': f'{self.macro.get_screen_size()}',
+                    '坐标更改': f'{self._macro.get_screen_size()}',
                     '窗口标题': '',
                     '窗口类名': '',
                     '鼠标图标更改': '是'

@@ -7,18 +7,15 @@ from ..services import services
 logger = logging.getLogger(__name__)
 
 
-def _get_service(name, default=None):
-    try:
-        return getattr(services, name)
-    except AttributeError:
-        return default
-
-
 class FrontendApi:
 
     @property
     def _window(self):
-        return _get_service('window')
+        return services.window
+
+    @property
+    def _scrcpy_manager(self):
+        return services.scrcpy_manager
 
     def _is_window_valid(self):
         window = self._window
@@ -92,7 +89,7 @@ class FrontendApi:
             js = "document.getElementById('ime-input')?.value || ''"
             cur = self._window.evaluate_js(js)
             if cur:
-                services.scrcpy_manager.send_text(''.join(cur))
+                self._scrcpy_manager.send_text(''.join(cur))
                 self._window.evaluate_js("window.__clearImeInput?.()")
         except Exception:
             pass

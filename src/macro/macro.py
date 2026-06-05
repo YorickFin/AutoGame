@@ -13,17 +13,14 @@ logger = logging.getLogger(__name__)
 
 class Macro:
     def __init__(self):
-        self.ocr = services.ocr
-        self.api = services.api
-
-        self.utils_path = services.utils_path
-        self.base_res_path = self.utils_path.base_res_path
-        self.base_user_path = self.utils_path.base_user_path
+        self.base_res_path = self._utils_path.base_res_path
+        self.base_user_path = self._utils_path.base_user_path
 
         self.macro_window = None
         self.macro_switch = False
         self.macro_switch_key = None
         self.key_name = None
+        self.position = None
         self.macro_file = None
         self.down_state_keys = []
         self.listening_for_key = False
@@ -33,7 +30,7 @@ class Macro:
         self.match = Match()
 
         self.executor = MacroExecutor()
-        self.functions = MacroFunctions(self.executor, self.ocr, self.match, self.utils_path)
+        self.functions = MacroFunctions(self.executor, self._ocr, self.match, self._utils_path)
 
         self.hook_listener = HookListener()
         self.hook_listener.add_handler('keydown', self._hook_all_down)
@@ -64,21 +61,45 @@ class Macro:
             '跟随': lambda data: self.functions.follow(data, False)
         }
 
+    @property
+    def _ocr(self):
+        return services.ocr
+
+    @property
+    def _api(self):
+        return services.api
+
+    @property
+    def _utils_path(self):
+        return services.utils_path
+
+    @property
+    def _key_mapping_executor(self):
+        return services.key_mapping_executor
+
+    @property
+    def position(self):
+        return services.position
+
+    @position.setter
+    def position(self, value):
+        services.position = value
+
     def start(self):
         logger.info('键鼠监听器启动')
         self.hook_listener.start()
 
     def _safe_save_json(self):
         try:
-            if self.api:
-                self.api.save_json_file()
+            if self._api:
+                self._api.save_json_file()
         except Exception as e:
             logger.error(f'保存 JSON 文件失败: {e}')
 
     def _safe_toggle_fullscreen(self):
         try:
-            if self.api:
-                self.api.toggle_screencast_fullscreen()
+            if self._api:
+                self._api.toggle_screencast_fullscreen()
         except Exception as e:
             logger.error(f'切换全屏失败: {e}')
 
@@ -87,7 +108,7 @@ class Macro:
         self.hook_listener.stop()
 
     def set_mouse_icon(self):
-        mouse_icon_path = self.utils_path.cursor_path
+        mouse_icon_path = self._utils_path.cursor_path
         try:
             if mouse_icon_path.exists():
                 cursor = ctypes.windll.user32.LoadCursorFromFileW(str(mouse_icon_path))
@@ -197,20 +218,20 @@ class Macro:
                     self.macro_switch = None
                     return False
 
-            if self.macro_file[0].get('鼠标图标更改', '否') == '是':
+            if self.macro_file[0].get('鼠标图标改变', '否') == '是':
                 self.set_mouse_icon()
 
-            if self.api:
+            if self._api:
                 try:
-                    self.api.disable_json_editor()
-                    self.api.save_json_file()
+                    self._api.disable_json_editor()
+                    self._api.save_json_file()
                 except Exception as e:
                     logger.error(f'切换宏开关时调用API失败: {e}')
         else:
             self.restore_mouse_icon()
-            if self.api:
+            if self._api:
                 try:
-                    self.api.enable_json_editor()
+                    self._api.enable_json_editor()
                 except Exception as e:
                     logger.error(f'切换宏开关时调用API失败: {e}')
             self.macro_window = None
@@ -233,8 +254,8 @@ class Macro:
             self._switch_toggle()
 
         try:
-            if services.key_mapping_executor and services.key_mapping_executor.enabled:
-                services.key_mapping_executor.on_key_down(self.key_name)
+            if self._key_mapping_executor and self._key_mapping_executor.enabled:
+                self._key_mapping_executor.on_key_down(self.key_name)
         except Exception as e:
             logger.error(f"按键映射执行器 on_key_down 异常: {e}", exc_info=True)
 
@@ -251,8 +272,8 @@ class Macro:
             self.key_name = event.button
 
         try:
-            if services.key_mapping_executor and services.key_mapping_executor.enabled:
-                services.key_mapping_executor.on_key_up(self.key_name)
+            if self._key_mapping_executor and self._key_mapping_executor.enabled:
+                self._key_mapping_executor.on_key_up(self.key_name)
         except Exception as e:
             logger.error(f"按键映射执行器 on_key_up 异常: {e}", exc_info=True)
 
@@ -274,7 +295,7 @@ class Macro:
         return False
 
     def _hook_mouse_move(self, event: MouseEvent):
-        services.position = event.position
+        self.position = event.position
         return False
 
     def __del__(self):
