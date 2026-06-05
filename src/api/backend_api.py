@@ -254,12 +254,6 @@ class BackendApi:
     def delete_key_mapping_file(self, file_name):
         return self.utils_file.delete_key_mapping_file(file_name)
 
-    def set_key_mapping_executor(self, executor):
-        services.key_mapping_executor = executor
-        if _get_service('macro'):
-            services.macro.set_key_mapping_executor(executor)
-        return {"ok": True}
-
     def apply_key_mapping(self, file_name):
         data = self.utils_file.load_key_mapping_file(file_name)
         if not data:
@@ -337,7 +331,6 @@ class BackendApi:
             'key_mapping_swipe',
             'get_android_keycode',
             'scrcpy_send_normalized_touch',
-            'set_key_mapping_executor',
             'get_key_mapping_mapped_keys',
             'start_key_listener',
             'set_focus_state',

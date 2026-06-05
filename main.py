@@ -27,7 +27,6 @@ class AutoGameApp:
         services.api = Api()
         services.macro = Macro()
         services.key_mapping_executor = KeyMappingExecutor()
-        services.macro.set_key_mapping_executor(services.key_mapping_executor)
 
         self.webview2_checker = WebView2Checker()
         self.utils_path = services.utils_path

@@ -17,6 +17,7 @@ class Services:
     utils_file: 'utils_file'
     utils_path: 'utils_path'
     ocr: Callable[..., Any]
+    position: tuple[int, int]
     window: Any
 
     def register(self, **services: Any) -> None: ...

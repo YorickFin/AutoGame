@@ -15,8 +15,6 @@ def _get_service(name, default=None):
 
 
 class FrontendApi:
-    def __init__(self):
-        pass
 
     @property
     def _window(self):

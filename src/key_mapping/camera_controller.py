@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from ..services import services
 from autoxkit.mousekey.mouse import Mouse
 
 
@@ -22,7 +23,7 @@ class CameraController:
         self._sensitivity = 1.0
         self._mouse = None
         self._monitor_center = (0, 0)
-        self._boundary_radius_sq = 10000
+        self._boundary_radius_sq = 100 * 100
         self._last_mouse = (0, 0)
         self._poll_thread = None
         self._poll_stop = threading.Event()
@@ -50,7 +51,6 @@ class CameraController:
         cx = int(mw // 2)
         cy = int(mh // 2)
         self._monitor_center = (cx, cy)
-        self._boundary_radius_sq = 200 * 200
         self._last_mouse = (cx, cy)
 
         self._active = True
@@ -124,7 +124,7 @@ class CameraController:
 
         while not self._poll_stop.is_set():
             try:
-                mx, my = mouse.get_mouse_position()
+                mx, my = services.position
             except Exception:
                 time.sleep(0.005)
                 continue
