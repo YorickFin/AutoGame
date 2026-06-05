@@ -10,7 +10,7 @@ from src.api import Api
 from src.services import services
 from src.utils import WebView2Checker, UtilsFile, utils_path, ocr
 from src.macro import Macro
-from src.key_mapping import KeyMappingExecutor
+from src.key_mapping import KeyMapping
 from src.scrcpy import ScrcpyManager, WsStreamServer
 
 
@@ -26,7 +26,7 @@ class AutoGameApp:
         services.scrcpy_manager = ScrcpyManager()
         services.api = Api()
         services.macro = Macro()
-        services.key_mapping_executor = KeyMappingExecutor()
+        services.key_mapping = KeyMapping()
 
         self.webview2_checker = WebView2Checker()
 

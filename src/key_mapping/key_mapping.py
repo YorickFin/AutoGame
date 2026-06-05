@@ -12,7 +12,7 @@ from ..services import services
 logger = logging.getLogger(__name__)
 
 
-class KeyMappingExecutor:
+class KeyMapping:
     """Main executor that coordinates button mapping, input detection, and camera control."""
 
     def __init__(self):

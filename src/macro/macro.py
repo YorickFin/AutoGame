@@ -70,8 +70,8 @@ class Macro:
         return services.utils_path
 
     @property
-    def _key_mapping_executor(self):
-        return services.key_mapping_executor
+    def _key_mapping(self):
+        return services.key_mapping
 
     @property
     def position(self):
@@ -243,8 +243,8 @@ class Macro:
             self._switch_toggle()
 
         try:
-            if self._key_mapping_executor and self._key_mapping_executor.enabled:
-                self._key_mapping_executor.on_key_down(self.key_name)
+            if self._key_mapping and self._key_mapping.enabled:
+                self._key_mapping.on_key_down(self.key_name)
         except Exception as e:
             logger.error(f"按键映射执行器 on_key_down 异常: {e}", exc_info=True)
 
@@ -261,8 +261,8 @@ class Macro:
             self.key_name = event.button
 
         try:
-            if self._key_mapping_executor and self._key_mapping_executor.enabled:
-                self._key_mapping_executor.on_key_up(self.key_name)
+            if self._key_mapping and self._key_mapping.enabled:
+                self._key_mapping.on_key_up(self.key_name)
         except Exception as e:
             logger.error(f"按键映射执行器 on_key_up 异常: {e}", exc_info=True)
 
