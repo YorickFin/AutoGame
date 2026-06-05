@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from ..services import services
 
 
 class ButtonMapping:
@@ -11,8 +12,7 @@ class ButtonMapping:
     _DIR_VECTORS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
     _OPPOSITE_DIRS = {"up": "down", "down": "up", "left": "right", "right": "left"}
 
-    def __init__(self, scrcpy):
-        self._scrcpy = scrcpy
+    def __init__(self):
         self._active_mapping = None
         self._down_state_keys: dict[str, tuple[int, float, float]] = {}
         self._dpad_states: dict[int, dict] = {}
@@ -20,6 +20,10 @@ class ButtonMapping:
     @property
     def active_mapping(self):
         return self._active_mapping
+
+    @property
+    def _scrcpy_manager(self):
+        return services.scrcpy_manager
 
     def apply(self, mapping_data):
         """Apply button mapping configuration."""
@@ -94,7 +98,7 @@ class ButtonMapping:
             if ctrl.get("key") == key_name:
                 x = ctrl.get("x", 0.5)
                 y = ctrl.get("y", 0.5)
-                resp = self._scrcpy.send_normalized_touch(0, x, y)
+                resp = self._scrcpy_manager.send_normalized_touch(0, x, y)
                 if resp.get("ok"):
                     pid = resp.get("pointer_id")
                     if pid is not None:
@@ -106,7 +110,7 @@ class ButtonMapping:
             if swp.get("key") == key_name:
                 path = swp.get("path", [])
                 if path:
-                    self._scrcpy.key_mapping_swipe(path)
+                    self._scrcpy_manager.key_mapping_swipe(path)
                 return True
 
         # Check dpad
@@ -128,7 +132,7 @@ class ButtonMapping:
             cy = dpad.get("y", 0.5)
             radius = dpad.get("size", 0.06)
 
-            _sw, _sh = self._scrcpy._last_session if self._scrcpy._last_session else (None, None)
+            _sw, _sh = self._scrcpy_manager._last_session if self._scrcpy_manager._last_session else (None, None)
 
             if dpad_idx not in self._dpad_states:
                 self._dpad_states[dpad_idx] = {"pressed": set(), "pid": None, "ex": 0.0, "ey": 0.0}
@@ -160,16 +164,16 @@ class ButtonMapping:
 
             if new_edge is None:
                 if state["pid"] is not None:
-                    self._scrcpy.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
+                    self._scrcpy_manager.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
                     state["pid"] = None
                 return True
 
             if old_edge is None:
-                resp = self._scrcpy.send_normalized_touch(0, cx, cy)
+                resp = self._scrcpy_manager.send_normalized_touch(0, cx, cy)
                 if resp.get("ok"):
                     pid = resp.get("pointer_id")
                     if pid is not None:
-                        self._scrcpy.send_normalized_touch(2, new_edge[0], new_edge[1], pointer_id=pid)
+                        self._scrcpy_manager.send_normalized_touch(2, new_edge[0], new_edge[1], pointer_id=pid)
                         state["pid"] = pid
                         state["ex"], state["ey"] = new_edge
                 return True
@@ -184,16 +188,16 @@ class ButtonMapping:
                 dot = 1.0
 
             if dot < 0:
-                self._scrcpy.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
-                resp = self._scrcpy.send_normalized_touch(0, cx, cy)
+                self._scrcpy_manager.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
+                resp = self._scrcpy_manager.send_normalized_touch(0, cx, cy)
                 if resp.get("ok"):
                     pid = resp.get("pointer_id")
                     if pid is not None:
-                        self._scrcpy.send_normalized_touch(2, nx, ny, pointer_id=pid)
+                        self._scrcpy_manager.send_normalized_touch(2, nx, ny, pointer_id=pid)
                         state["pid"] = pid
                         state["ex"], state["ey"] = nx, ny
             else:
-                self._scrcpy.send_normalized_touch(2, nx, ny, pointer_id=state["pid"])
+                self._scrcpy_manager.send_normalized_touch(2, nx, ny, pointer_id=state["pid"])
                 state["ex"], state["ey"] = nx, ny
 
             return True
@@ -209,7 +213,7 @@ class ButtonMapping:
         item = self._down_state_keys.pop(key_name, None)
         if item is not None:
             pid, px, py = item
-            self._scrcpy.send_normalized_touch(1, px, py, pointer_id=pid)
+            self._scrcpy_manager.send_normalized_touch(1, px, py, pointer_id=pid)
             return True
 
         # Check dpad
@@ -233,7 +237,7 @@ class ButtonMapping:
 
             if not state["pressed"]:
                 if state["pid"] is not None:
-                    self._scrcpy.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
+                    self._scrcpy_manager.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])
                     state["pid"] = None
             else:
                 cx = dpad.get("x", 0.5)
@@ -241,11 +245,11 @@ class ButtonMapping:
                 radius = dpad.get("size", 0.06)
                 new_edge = self._resolve_edge(
                     state["pressed"], key_to_dir, cx, cy, radius,
-                    self._scrcpy._last_session[0] if self._scrcpy._last_session else None,
-                    self._scrcpy._last_session[1] if self._scrcpy._last_session else None
+                    self._scrcpy_manager._last_session[0] if self._scrcpy_manager._last_session else None,
+                    self._scrcpy_manager._last_session[1] if self._scrcpy_manager._last_session else None
                 )
                 if new_edge is not None and state["pid"] is not None:
-                    self._scrcpy.send_normalized_touch(2, new_edge[0], new_edge[1], pointer_id=state["pid"])
+                    self._scrcpy_manager.send_normalized_touch(2, new_edge[0], new_edge[1], pointer_id=state["pid"])
                     state["ex"], state["ey"] = new_edge
 
             return True

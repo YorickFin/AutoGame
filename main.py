@@ -8,11 +8,10 @@ from PIL import Image
 import pystray
 from src.api import Api
 from src.services import services
-from src.utils import ocr, WebView2Checker, utils_path
-from src.utils import UtilsFile
+from src.utils import WebView2Checker, UtilsFile, utils_path, ocr
 from src.macro import Macro
 from src.key_mapping import KeyMappingExecutor
-from src.scrcpy import ScrcpyManager
+from src.scrcpy import ScrcpyManager, WsStreamServer
 
 
 logger = logging.getLogger(__name__)
@@ -23,27 +22,35 @@ class AutoGameApp:
         services.utils_path = utils_path
         services.ocr = ocr
         services.utils_file = UtilsFile()
-        services.scrcpy = ScrcpyManager()
+        services.ws_stream_server = WsStreamServer()
+        services.scrcpy_manager = ScrcpyManager()
         services.api = Api()
         services.macro = Macro()
         services.key_mapping_executor = KeyMappingExecutor()
-        services.macro.set_key_mapping_executor(services.key_mapping_executor)
 
         self.webview2_checker = WebView2Checker()
-        self.utils_path = services.utils_path
-        self.api = services.api
-        self.macro = services.macro
-        self.key_mapping_executor = services.key_mapping_executor
 
         self.debug = True
         self.window = None
         self.tray = None
 
-    def get_adaptive_window_size(self):
+    @property
+    def _utils_path(self):
+        return services.utils_path
+
+    @property
+    def _api(self):
+        return services.api
+
+    @property
+    def _macro(self):
+        return services.macro
+
+    def _get_adaptive_window_size(self):
         """
         获取自适应窗口大小，根据屏幕分辨率调整。
         """
-        screen_width, screen_height = self.macro.get_screen_size()
+        screen_width, screen_height = self._macro.get_screen_size()
 
         scale_factor = (screen_width - 1920) * (0.2 / 640)
         scale_w = 1.8 + scale_factor
@@ -62,8 +69,8 @@ class AutoGameApp:
         获取HTML文件的路径，先检查打包环境的路径，若不存在则返回开发环境的路径。
         """
         # 检查打包环境的路径
-        if self.utils_path.is_frozen():
-            index_path = self.utils_path.index_html_path
+        if self._utils_path.is_frozen():
+            index_path = self._utils_path.index_html_path
             if index_path.exists():
                 self.debug = False
                 return str(index_path)
@@ -75,7 +82,7 @@ class AutoGameApp:
         """
         创建主窗口。
         """
-        win_width, win_height, pos_x, pos_y = self.get_adaptive_window_size()
+        win_width, win_height, pos_x, pos_y = self._get_adaptive_window_size()
         index_path = self._get_index_path()
 
         self.window = webview.create_window(
@@ -87,7 +94,7 @@ class AutoGameApp:
             y=pos_y,
             frameless=True,
             easy_drag=False,
-            js_api=self.api
+            js_api=self._api
         )
         services.window = self.window
         self.window.events.closed += self.on_window_closed
@@ -99,9 +106,9 @@ class AutoGameApp:
         if self.tray:
             self.tray.visible = False
             self.tray.stop()
-        if self.macro:
-            self.macro.restore_mouse_icon()
-            self.macro.stop()
+        if self._macro:
+            self._macro.restore_mouse_icon()
+            self._macro.stop()
         logger.info('应用已关闭')
 
     def show_window(self):
@@ -120,9 +127,9 @@ class AutoGameApp:
         if self.tray:
             self.tray.visible = False
             self.tray.stop()
-        if self.macro:
-            self.macro.restore_mouse_icon()
-            self.macro.stop()
+        if self._macro:
+            self._macro.restore_mouse_icon()
+            self._macro.stop()
         subprocess.Popen(
             "taskkill /f /im adb.exe",
             shell=True,
@@ -133,7 +140,7 @@ class AutoGameApp:
         """
         创建系统托盘图标。
         """
-        icon_path = self.utils_path.logo_tray_path
+        icon_path = self._utils_path.logo_tray_path
         image = Image.open(icon_path)
 
         def on_tray_click(icon, item):
@@ -159,7 +166,7 @@ class AutoGameApp:
         """
         self._create_window()
         Thread(target=self.run_tray).start()
-        Thread(target=self.macro.start).start()
+        Thread(target=self._macro.start).start()
         webview.start(debug=self.debug)
 
 
