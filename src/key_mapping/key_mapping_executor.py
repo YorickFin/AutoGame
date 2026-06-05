@@ -16,16 +16,16 @@ class KeyMappingExecutor:
     """Main executor that coordinates button mapping, input detection, and camera control."""
 
     def __init__(self):
-        self._button_mapping = ButtonMapping(self.scrcpy)
-        self._camera = CameraController(self.scrcpy)
-        self._input = InputDetector(self.scrcpy)
+        self._button_mapping = ButtonMapping()
+        self._camera = CameraController()
+        self._input = InputDetector()
         self._enabled = False
         self._enabled_before_focus = False
         self._active_mapping = None
 
     @property
-    def scrcpy(self):
-        return services.scrcpy
+    def scrcpy_manager(self):
+        return services.scrcpy_manager
 
     @property
     def api(self):
@@ -72,12 +72,12 @@ class KeyMappingExecutor:
             return True
 
         # Handle input keycodes
-        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        key_code = self.scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
         if self._input.input_shown and key_code == 67:
-            self.scrcpy.send_keycode(key_code, 0)
+            self.scrcpy_manager.send_keycode(key_code, 0)
             return True
         elif not self._input.input_shown and key_code:
-            self.scrcpy.send_keycode(key_code, 0)
+            self.scrcpy_manager.send_keycode(key_code, 0)
             return True
 
         return False
@@ -92,15 +92,15 @@ class KeyMappingExecutor:
             return True
 
         # Handle input keycodes
-        key_code = self.scrcpy.ANDROID_KEYCODE_MAP.get(key_name, None)
+        key_code = self.scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
         if self._input.input_shown:
             if self.api:
                 self.api.poll_input()
             if key_code == 67:
-                self.scrcpy.send_keycode(key_code, 1)
+                self.scrcpy_manager.send_keycode(key_code, 1)
             return True
         elif not self._input.input_shown and key_code:
-            self.scrcpy.send_keycode(key_code, 1)
+            self.scrcpy_manager.send_keycode(key_code, 1)
             return True
 
         return False
@@ -111,9 +111,9 @@ class KeyMappingExecutor:
             self._camera.stop()
             self._camera.notify_state_change(self.api)
         else:
-            if not self.scrcpy._last_session:
+            if not self.scrcpy_manager._last_session:
                 return
-            sw, sh = self.scrcpy._last_session
+            sw, sh = self.scrcpy_manager._last_session
             self._camera.start(config, sw, sh, self._camera._sensitivity)
             self._camera.notify_state_change(self.api)
 
@@ -122,8 +122,8 @@ class KeyMappingExecutor:
         self._camera.reset()
         self._input.reset()
         self._button_mapping.reset()
-        if self.scrcpy:
-            self.scrcpy.key_mapping_reset()
+        if self.scrcpy_manager:
+            self.scrcpy_manager.key_mapping_reset()
 
     @property
     def input_shown(self):

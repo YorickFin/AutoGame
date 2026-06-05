@@ -92,7 +92,7 @@ class FrontendApi:
             js = "document.getElementById('ime-input')?.value || ''"
             cur = self._window.evaluate_js(js)
             if cur:
-                services.scrcpy.send_text(''.join(cur))
+                services.scrcpy_manager.send_text(''.join(cur))
                 self._window.evaluate_js("window.__clearImeInput?.()")
         except Exception:
             pass

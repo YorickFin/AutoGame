@@ -11,8 +11,8 @@ from ..services import services
 class InputDetector:
     """Monitors and reports input state."""
 
-    def __init__(self, scrcpy):
-        self._scrcpy = scrcpy
+    def __init__(self):
+        self._scrcpy_manager = services.scrcpy_manager
         self._input_shown: bool | None = None
         self._input_just_hidden = False
         self._last_notify_state: tuple[bool, bool] | None = None
@@ -59,7 +59,7 @@ class InputDetector:
 
     def _queryinput_shown(self) -> bool | None:
         """Query Android if soft input is shown. Returns None if query fails."""
-        output = self._scrcpy.adb_shell("dumpsys", "input_method")
+        output = self._scrcpy_manager.adb_shell("dumpsys", "input_method")
         if output is None:
             return None
         m = re.search(r"mInputShown=(true|false)", output)

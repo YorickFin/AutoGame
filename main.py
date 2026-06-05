@@ -8,8 +8,7 @@ from PIL import Image
 import pystray
 from src.api import Api
 from src.services import services
-from src.utils import ocr, WebView2Checker, utils_path
-from src.utils import UtilsFile
+from src.utils import WebView2Checker, UtilsFile, utils_path, ocr
 from src.macro import Macro
 from src.key_mapping import KeyMappingExecutor
 from src.scrcpy import ScrcpyManager
@@ -23,7 +22,7 @@ class AutoGameApp:
         services.utils_path = utils_path
         services.ocr = ocr
         services.utils_file = UtilsFile()
-        services.scrcpy = ScrcpyManager()
+        services.scrcpy_manager = ScrcpyManager()
         services.api = Api()
         services.macro = Macro()
         services.key_mapping_executor = KeyMappingExecutor()

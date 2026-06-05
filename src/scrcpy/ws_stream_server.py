@@ -26,7 +26,7 @@ class WsStreamServer:
 
     def __init__(self) -> None:
         try:
-            self._loop = services.scrcpy._loop
+            self._loop = services.scrcpy_manager._loop
         except AttributeError:
             self._loop = asyncio.get_running_loop()
         self._last_session_event: str | None = None

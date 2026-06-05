@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from ..services import services
 
 
 class ButtonMapping:
@@ -11,8 +12,8 @@ class ButtonMapping:
     _DIR_VECTORS = {"up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0)}
     _OPPOSITE_DIRS = {"up": "down", "down": "up", "left": "right", "right": "left"}
 
-    def __init__(self, scrcpy):
-        self._scrcpy = scrcpy
+    def __init__(self):
+        self._scrcpy = services.scrcpy_manager
         self._active_mapping = None
         self._down_state_keys: dict[str, tuple[int, float, float]] = {}
         self._dpad_states: dict[int, dict] = {}

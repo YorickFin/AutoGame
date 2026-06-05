@@ -11,8 +11,8 @@ from autoxkit.mousekey.mouse import Mouse
 class CameraController:
     """Controls 3D view mode by polling mouse position and sending touch deltas."""
 
-    def __init__(self, scrcpy):
-        self._scrcpy = scrcpy
+    def __init__(self):
+        self._scrcpy_manager = services.scrcpy_manager
         self._active = False
         self._config = None
         self._center = (0.5, 0.5)
@@ -38,7 +38,7 @@ class CameraController:
         if self._active:
             return
 
-        if not self._scrcpy._last_session:
+        if not self._scrcpy_manager._last_session:
             return
 
         try:
@@ -58,13 +58,14 @@ class CameraController:
         self._center = (config.get('x', 0.5), config.get('y', 0.5))
         self._screen_width = screen_width
         self._screen_height = screen_height
+        self._boundary_radius_sq = ((mh - 10) // 2) * ((mh - 10) // 2)
         self._sensitivity = sensitivity
 
         device_cx = int(self._center[0] * screen_width)
         device_cy = int(self._center[1] * screen_height)
         self._touch_x = device_cx
         self._touch_y = device_cy
-        self._scrcpy.send_touch(0, device_cx, device_cy, screen_width, screen_height)
+        self._scrcpy_manager.send_touch(0, device_cx, device_cy, screen_width, screen_height)
 
         self._poll_stop.clear()
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
@@ -80,9 +81,9 @@ class CameraController:
             self._poll_thread.join(timeout=1.0)
         self._poll_thread = None
 
-        if self._scrcpy._last_session:
-            sw, sh = self._scrcpy._last_session
-            self._scrcpy.send_touch(1, self._touch_x, self._touch_y, sw, sh)
+        if self._scrcpy_manager._last_session:
+            sw, sh = self._scrcpy_manager._last_session
+            self._scrcpy_manager.send_touch(1, self._touch_x, self._touch_y, sw, sh)
 
         self._active = False
         self._config = None
@@ -145,18 +146,18 @@ class CameraController:
                 self._touch_y = clamped_ty
 
             if dx != 0 or dy != 0:
-                self._scrcpy.send_touch(2, clamped_tx, clamped_ty, sw, sh)
+                self._scrcpy_manager.send_touch(2, clamped_tx, clamped_ty, sw, sh)
 
             off_x = mx - cx
             off_y = my - cy
             if off_x * off_x + off_y * off_y > r_sq:
-                self._scrcpy.send_touch(1, clamped_tx, clamped_ty, sw, sh)
+                self._scrcpy_manager.send_touch(1, clamped_tx, clamped_ty, sw, sh)
                 center_tx = int(self._center[0] * sw)
                 center_ty = int(self._center[1] * sh)
                 with self._lock:
                     self._touch_x = center_tx
                     self._touch_y = center_ty
-                self._scrcpy.send_touch(0, center_tx, center_ty, sw, sh)
+                self._scrcpy_manager.send_touch(0, center_tx, center_ty, sw, sh)
                 try:
                     mouse.mouse_move(cx, cy, duration=0, steps=1)
                 except Exception:

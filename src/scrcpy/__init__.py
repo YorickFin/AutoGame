@@ -1,4 +1,4 @@
-from .manager import ScrcpyManager
+from .scrcpy_manager import ScrcpyManager
 from .ws_stream_server import WsStreamServer
 
 __all__ = [

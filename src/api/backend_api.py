@@ -30,8 +30,8 @@ class BackendApi:
         return services.utils_file
 
     @property
-    def scrcpy(self):
-        return services.scrcpy
+    def scrcpy_manager(self):
+        return services.scrcpy_manager
 
     @property
     def key_mapping_executor(self):
@@ -191,50 +191,50 @@ class BackendApi:
             return False
 
     def scrcpy_start(self, serial=None, config=None):
-        return self.scrcpy.start(serial, config)
+        return self.scrcpy_manager.start(serial, config)
 
     def scrcpy_stop(self):
-        return self.scrcpy.stop()
+        return self.scrcpy_manager.stop()
 
     def scrcpy_status(self):
-        return self.scrcpy.status()
+        return self.scrcpy_manager.status()
 
     def scrcpy_get_ws_port(self):
-        return self.scrcpy.get_ws_port()
+        return self.scrcpy_manager.get_ws_port()
 
     def scrcpy_send_touch(self, action, x, y, width, height):
-        return self.scrcpy.send_touch(action, x, y, width, height)
+        return self.scrcpy_manager.send_touch(action, x, y, width, height)
 
     def scrcpy_send_keycode(self, keycode, action=0):
-        return self.scrcpy.send_keycode(keycode, action)
+        return self.scrcpy_manager.send_keycode(keycode, action)
 
     def scrcpy_set_clipboard(self, text):
-        return self.scrcpy.set_clipboard(text)
+        return self.scrcpy_manager.set_clipboard(text)
 
     def scrcpy_send_text(self, text: str):
         logger.info(f"Sending text: {text}")
-        return self.scrcpy.send_text(text)
+        return self.scrcpy_manager.send_text(text)
 
     def scrcpy_switch_to_wireless(self):
-        return self.scrcpy.switch_to_wireless()
+        return self.scrcpy_manager.switch_to_wireless()
 
     def scrcpy_discover_usb_serial(self):
-        return self.scrcpy.discover_usb_serial()
+        return self.scrcpy_manager.discover_usb_serial()
 
     def scrcpy_volume_up(self):
-        return self.scrcpy.volume_up()
+        return self.scrcpy_manager.volume_up()
 
     def scrcpy_volume_down(self):
-        return self.scrcpy.volume_down()
+        return self.scrcpy_manager.volume_down()
 
     def scrcpy_back(self):
-        return self.scrcpy.back()
+        return self.scrcpy_manager.back()
 
     def scrcpy_switch_app(self):
-        return self.scrcpy.switch_app()
+        return self.scrcpy_manager.switch_app()
 
     def scrcpy_home(self):
-        return self.scrcpy.home()
+        return self.scrcpy_manager.home()
 
     def get_key_mapping_files(self):
         return self.utils_file.get_key_mapping_files()
@@ -258,19 +258,19 @@ class BackendApi:
         data = self.utils_file.load_key_mapping_file(file_name)
         if not data:
             return {"ok": False, "error": "failed to load key mapping"}
-        self.scrcpy.apply_key_mapping(data)
+        self.scrcpy_manager.apply_key_mapping(data)
         if self.key_mapping_executor:
             self.key_mapping_executor.apply(data)
         return {"ok": True}
 
     def remove_key_mapping(self):
-        self.scrcpy.remove_key_mapping()
+        self.scrcpy_manager.remove_key_mapping()
         if self.key_mapping_executor:
             self.key_mapping_executor.remove()
         return {"ok": True}
 
     def scrcpy_send_normalized_touch(self, action, x, y):
-        return self.scrcpy.send_normalized_touch(action, x, y)
+        return self.scrcpy_manager.send_normalized_touch(action, x, y)
 
     def get_key_mapping_mapped_keys(self):
         if self.key_mapping_executor:
@@ -278,25 +278,25 @@ class BackendApi:
         return []
 
     def key_mapping_trigger(self, key_name, action):
-        return self.scrcpy.key_mapping_trigger(key_name, action)
+        return self.scrcpy_manager.key_mapping_trigger(key_name, action)
 
     def key_mapping_swipe(self, path_data):
-        return self.scrcpy.key_mapping_swipe(path_data)
+        return self.scrcpy_manager.key_mapping_swipe(path_data)
 
     def get_android_keycode(self, key_name):
-        return self.scrcpy.key_mapping_get_android_keycode(key_name)
+        return self.scrcpy_manager.key_mapping_get_android_keycode(key_name)
 
     def set_screencast_ratio(self, ratio):
         if ratio == "reset":
-            return self.scrcpy.reset_screen_ratio()
+            return self.scrcpy_manager.reset_screen_ratio()
         if ratio == "monitor":
             w, h = self.macro.get_screen_size()
             w, h = int(w), int(h)
             gcd = math.gcd(w, h)
             wr, hr = w // gcd, h // gcd
-            return self.scrcpy.set_screen_ratio(wr, hr)
+            return self.scrcpy_manager.set_screen_ratio(wr, hr)
         if ratio == "16:9":
-            return self.scrcpy.set_screen_ratio(16, 9)
+            return self.scrcpy_manager.set_screen_ratio(16, 9)
         return {"ok": False, "error": f"unknown ratio: {ratio}"}
 
     def has_mleft_key_configured(self):

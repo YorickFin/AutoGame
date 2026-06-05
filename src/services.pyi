@@ -5,16 +5,15 @@ if TYPE_CHECKING:
     from src.key_mapping import KeyMappingExecutor
     from src.macro import Macro
     from src.scrcpy import ScrcpyManager
-    from src.utils.utils_file import utils_file
-    from src.utils.utils_path import utils_path
+    from src.utils import UtilsFile, utils_path
 
 
 class Services:
     api: 'Api'
     macro: 'Macro'
-    scrcpy: 'ScrcpyManager'
+    scrcpy_manager: 'ScrcpyManager'
     key_mapping_executor: 'KeyMappingExecutor'
-    utils_file: 'utils_file'
+    utils_file: 'UtilsFile'
     utils_path: 'utils_path'
     ocr: Callable[..., Any]
     position: tuple[int, int]
