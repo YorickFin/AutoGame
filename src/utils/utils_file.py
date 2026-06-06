@@ -4,6 +4,7 @@ import json
 import ast
 import tomli
 import subprocess
+from autoxkit import Hex_Key_Code
 
 from ..services import services
 from .utils_path import utils_path
@@ -130,13 +131,11 @@ class UtilsFile:
             dict | False: 宏文件内容字典 | False
         """
 
-        def preprocess_file(macro_file: str):
+        def verify_file(macro_file: str):
             """
-                预处理宏文件
+                校验宏文件
             Args:
                 macro_file (str): 宏文件内容文字
-            Returns:
-                dict | False: 宏文件内容字典 | False
             """
             try:
                 replacements = {
@@ -150,6 +149,8 @@ class UtilsFile:
                     "”": '"',
                     "'": '"',
                     '！': '!',
+                    '（': '(',
+                    '）': ')',
                     '延时': '延迟'
                 }
                 text = macro_file
@@ -157,7 +158,184 @@ class UtilsFile:
                     text = text.replace(old, new)
                 return ast.literal_eval(text)
             except Exception as e:
-                logger.error(f'预处理宏文件 报错信息：{e}')
+                logger.error(f'校验宏文件 报错信息：{e}')
+                return False
+
+        def collect_keys(macro_file: dict):
+            """
+                收集按键
+            Args:
+                macro_file (dict): 宏文件内容字典
+            """
+            mouse_buttons = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
+            # 单键字段
+            single_key_fields = ('触发键', '辅助1', '辅助2', '映射1', '映射2')
+            # 多键字段
+            multi_key_fields = (
+                '宏指令', '后置指令', '分支1', '分支2',
+                '分支Y', '分支N', '大于分支', '小于分支',
+            )
+            try:
+                keys = []
+
+                # 收集单键字段
+                for item in macro_file:
+                    for field in single_key_fields:
+                        k = item.get(field)
+                        if (k is not None
+                                and (k in mouse_buttons or k in Hex_Key_Code)
+                                and k not in keys):
+                            keys.append(k)
+
+                # 收集多键字段中的按键
+                command_keys = []
+                for item in macro_file:
+                    for field in multi_key_fields:
+                        value = item.get(field)
+                        if value:
+                            command_keys.extend(value.split(','))
+
+                for i in command_keys:
+                    for j in i.split():
+                        if (j in mouse_buttons or j in Hex_Key_Code) and j not in keys:
+                            keys.append(j)
+
+                macro_file[0]['按键更改'] = ','.join(keys)
+                return macro_file
+
+            except Exception as e:
+                logger.error(f'校验宏文件 报错信息：{e}')
+                return False
+
+        def replace_keys(macro_file: dict):
+            """
+                替换按键
+                Args:
+                    macro_file (dict): 宏文件内容字典
+            """
+            mouse_buttons = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
+            single_key_fields = ('触发键', '辅助1', '辅助2', '映射1', '映射2')
+            multi_key_fields = (
+                '宏指令', '后置指令', '分支1', '分支2',
+                '分支Y', '分支N', '大于分支', '小于分支',
+            )
+            try:
+                # 解析映射：仅处理显式带 -> 的项
+                # "C->O,K,X,S->P,A" -> {'C': 'O', 'S': 'P'}
+                key_map = {}
+                raw = macro_file[0].get('按键更改')
+                for part in raw.split(','):
+                    part = part.strip()
+                    if not part or '->' not in part:
+                        continue
+                    _src, _tgt = part.split('->', 1)
+                    _src = _src.strip()
+                    _tgt = _tgt.strip()
+                    if _src and _tgt:
+                        key_map[_src] = _tgt
+
+                def _is_valid_key(k: str) -> bool:
+                    return k in mouse_buttons or k in Hex_Key_Code
+
+                # 替换单键字段
+                for item in macro_file:
+                    for field in single_key_fields:
+                        k = item.get(field)
+                        if k is not None and k in key_map and _is_valid_key(key_map[k]):
+                            item[field] = key_map[k]
+
+                # 替换多键字段
+                for item in macro_file:
+                    for field in multi_key_fields:
+                        value = item.get(field)
+                        if not value:
+                            continue
+                        tokens = value.split(',')
+                        new_tokens = []
+                        for tok in tokens:
+                            if not tok:
+                                new_tokens.append(tok)
+                                continue
+                            words = tok.split()
+                            new_words = []
+                            for w in words:
+                                if w in key_map and _is_valid_key(key_map[w]):
+                                    new_words.append(key_map[w])
+                                else:
+                                    new_words.append(w)
+                            new_tokens.append(' '.join(new_words))
+                        item[field] = ','.join(new_tokens)
+
+                return macro_file
+            except Exception as e:
+                logger.error(f'替换按键 报错信息：{e}')
+                return False
+
+        def replace_coords(macro_file: dict):
+            """
+                替换坐标
+            Args:
+                macro_file (dict): 宏文件内容字典
+            """
+            mouse_buttons = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2', '移动']
+            multi_key_fields = (
+                '宏指令', '后置指令', '分支1', '分支2',
+                '分支Y', '分支N', '大于分支', '小于分支',
+            )
+            try:
+                # 比例计算
+                coord_parts = macro_file[0].get('坐标更改', '').split('->')
+                if len(coord_parts) != 2:
+                    logger.error('坐标更改格式不正确，应为 old->new')
+                    return False
+                old_coords = ast.literal_eval(coord_parts[0])
+                new_coords = ast.literal_eval(coord_parts[1])
+                if not (isinstance(old_coords, (list, tuple)) and isinstance(new_coords, (list, tuple))
+                        and len(old_coords) >= 2 and len(new_coords) >= 2):
+                    logger.error('坐标更改内容格式不正确，应为 (x,y)->(x,y)')
+                    return False
+                if old_coords[0] == 0 or old_coords[1] == 0:
+                    logger.error('旧坐标不能为 0，无法计算比例')
+                    return False
+                scale_factor = new_coords[0] / old_coords[0], new_coords[1] / old_coords[1]
+                macro_file[0]['坐标更改'] = str(new_coords)
+
+                # 替换多键字段
+                for item in macro_file:
+                    for field in multi_key_fields:
+                        value = item.get(field)
+                        if not value:
+                            continue
+                        tokens = value.split(',')
+                        new_tokens = []
+                        for tok in tokens:
+                            if len(tok) >= 3 and any(btn in tok for btn in mouse_buttons):
+                                tok_list = tok.split()
+                                btn_index = -1
+                                for btn in mouse_buttons:
+                                    if btn in tok_list:
+                                        btn_index = tok_list.index(btn)
+                                        break
+                                if btn_index < 0 or btn_index + 2 >= len(tok_list):
+                                    new_tokens.append(tok)
+                                    continue
+                                try:
+                                    r = int(tok_list[btn_index + 1]) * scale_factor[0]
+                                    c = int(tok_list[btn_index + 2]) * scale_factor[1]
+                                except (ValueError, TypeError):
+                                    new_tokens.append(tok)
+                                    continue
+                                new_tok_list = list(tok_list[:btn_index + 1])
+                                new_tok_list.append(f'{int(r)} {int(c)}')
+                                new_tok_list.extend(tok_list[btn_index + 3:])
+                                new_tokens.append(' '.join(new_tok_list))
+                            else:
+                                new_tokens.append(tok)
+                        item[field] = ','.join(new_tokens)
+
+                return macro_file
+            except Exception as e:
+                logger.error(f'替换坐标 报错信息：{e}')
                 return False
 
         def save_file(macro_file: dict, file_path: str):
@@ -174,18 +352,46 @@ class UtilsFile:
                 logger.error(f'保存宏文件 报错信息：{e}')
                 return False
 
-        try:
-            logger.info(f'保存宏文件：{file_name}')
-            file_path = utils_path.macro_dir / f'{file_name}.json'
-            macro_file = preprocess_file(macro_file)
-            if not macro_file:
+        def flow_control(macro_file: str, file_name: str):
+            """
+                流程控制
+            Args:
+                macro_file (str): 宏文件内容文字
+                file_name (str): 宏文件名(不包含扩展名)
+            Returns:
+                dict | False: 宏文件内容字典 | False
+            """
+            try:
+                logger.info(f'保存宏文件：{file_name}')
+                file_path = utils_path.macro_dir / f'{file_name}.json'
+
+                macro_file = verify_file(macro_file)
+                if not macro_file:
+                    return False
+
+                if '->' in macro_file[0].get('按键更改'):
+                    macro_file = replace_keys(macro_file)
+                    if not macro_file:
+                        return False
+
+                if '->' in macro_file[0].get('坐标更改'):
+                    macro_file = replace_coords(macro_file)
+                    if not macro_file:
+                        return False
+
+                if '按键更改' in macro_file[0]:
+                    macro_file = collect_keys(macro_file)
+                    if not macro_file:
+                        return False
+
+                save_file(macro_file, file_path)
+                self._macro.set_macro_file(macro_file)
+                return macro_file
+            except Exception as e:
+                logger.error(f'保存宏文件 报错信息：{e}')
                 return False
-            save_file(macro_file, file_path)
-            self._macro.set_macro_file(macro_file)
-            return macro_file
-        except Exception as e:
-            logger.error(f'保存宏文件 报错信息：{e}')
-            return False
+
+        return flow_control(macro_file, file_name)
 
     def create_new_file(self):
         """
