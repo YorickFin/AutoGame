@@ -63,6 +63,12 @@ class WsStreamServer:
             self._server.close()
             await self._server.wait_closed()
             self._server = None
+        # Reset cached state so reconnecting clients get fresh session/keyframe
+        self._last_session_event = None
+        self._session_cached = asyncio.Event()
+        self._cached_keyframe_meta = None
+        self._cached_keyframe_data = None
+        self._keyframe_cached = asyncio.Event()
         logger.info("WebSocket stream server stopped")
 
     def _build_binary_header(self, kind: str, meta: dict[str, Any] | None) -> bytes:
