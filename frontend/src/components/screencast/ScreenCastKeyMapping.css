@@ -57,6 +57,28 @@
   box-shadow: 0 0 12px rgba(251, 146, 60, 0.5);
 }
 
+/* Camera / 3D control uses same style as mouse controls */
+.key-control.camera .control-circle {
+  background: rgba(234, 88, 12, 0.35);
+  border-color: rgba(251, 146, 60, 0.9);
+}
+
+.key-control.camera .control-circle:hover {
+  border-color: #FB923C;
+  box-shadow: 0 0 12px rgba(251, 146, 60, 0.5);
+}
+
+/* Local Camera control - different color to distinguish */
+.key-control.camera.local .control-circle {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: rgba(167, 139, 250, 0.9);
+}
+
+.key-control.camera.local .control-circle:hover {
+  border-color: #C084FC;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+}
+
 .key-control.listening .control-circle {
   animation: km-pulse 1s infinite;
   border-color: #FBBF24;
