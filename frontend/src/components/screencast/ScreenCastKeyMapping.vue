@@ -93,8 +93,8 @@
       <div @click="createMouseRight">鼠标右键</div>
       <div @click="startSwipeRecording">滑动键位</div>
       <div @click="createDirectionKey">方向轮盘</div>
-      <div @click="createCameraControl">全局3D视角控制</div>
-      <div @click="createCameraLocalControl">局部3D视角控制</div>
+      <div @click="createCameraControl">全局3D控制</div>
+      <div @click="createCameraLocalControl">局部3D控制</div>
     </div>
   </div>
 
@@ -474,16 +474,16 @@ function createMouseLeft() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
-  const ctrl = {
-    id: controlId("mbtn"),
+  const cam = {
+    id: controlId("caml"),
+    type: "camera_local",
     key: "MLeft",
     label: "MLeft",
-    isMouse: true,
     x: norm.x,
     y: norm.y,
-    radius: 12,
+    radius: 15
   }
-  controls.value.push(ctrl)
+  cameras_local.value.push(cam)
   autoSave()
 }
 
@@ -491,16 +491,16 @@ function createMouseRight() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
-  const ctrl = {
-    id: controlId("mbtn"),
+  const cam = {
+    id: controlId("caml"),
+    type: "camera_local",
     key: "MRight",
     label: "MRight",
-    isMouse: true,
     x: norm.x,
     y: norm.y,
-    radius: 12,
+    radius: 15
   }
-  controls.value.push(ctrl)
+  cameras_local.value.push(cam)
   autoSave()
 }
 
