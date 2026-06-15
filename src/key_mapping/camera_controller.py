@@ -167,14 +167,11 @@ class CameraController:
                 center_tx = int(self._center[0] * sw)
                 center_ty = int(self._center[1] * sh)
                 self._scrcpy_manager.send_normalized_touch(1, self._center[0], self._center[1], pointer_id=pid)
+                mouse.mouse_move(cx, cy, duration=0, steps=1)
                 with self._lock:
                     self._touch_x = center_tx
                     self._touch_y = center_ty
                 self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
-                try:
-                    mouse.mouse_move(cx, cy, duration=0, steps=1)
-                except Exception:
-                    pass
                 last_mx, last_my = cx, cy
 
             time.sleep(0.01)
