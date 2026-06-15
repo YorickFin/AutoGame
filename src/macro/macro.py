@@ -17,9 +17,9 @@ class Macro:
         self.macro_switch = False
         self.macro_switch_key = None
         self.key_name = None
-        self.position = None
         self.macro_file = None
         self.down_state_keys = []
+        self.set_cursor_flag = False
         self.listening_for_key = False
         self.listening_key_target = None
         self.last_key_pressed = None
@@ -33,7 +33,6 @@ class Macro:
         self.hook_listener.add_handler('keyup', self._hook_all_up)
         self.hook_listener.add_handler('mousedown', self._hook_all_down)
         self.hook_listener.add_handler('mouseup', self._hook_all_up)
-        self.hook_listener.add_handler('mousemove', self._hook_mouse_move)
 
         self.hotkey_listener = HotkeyListener(self.hook_listener)
         self.hotkey_listener.add_hotkey('保存', ['LCtrl', 'S'], lambda: self._safe_save_json())
@@ -73,13 +72,6 @@ class Macro:
     def _key_mapping(self):
         return services.key_mapping
 
-    @property
-    def position(self):
-        return services.position
-
-    @position.setter
-    def position(self, value):
-        services.position = value
 
     def start(self):
         logger.info('键鼠监听器启动')
@@ -109,6 +101,7 @@ class Macro:
             if mouse_icon_path.exists():
                 cursor = ctypes.windll.user32.LoadCursorFromFileW(str(mouse_icon_path))
                 ctypes.windll.user32.SetSystemCursor(cursor, 32512)
+                self.set_cursor_flag = True
                 logger.info('设置鼠标图标')
         except Exception as e:
             logger.error(f'设置鼠标图标失败: {e}')
@@ -116,6 +109,7 @@ class Macro:
     def restore_mouse_icon(self):
         try:
             ctypes.windll.user32.SystemParametersInfoW(0x0057, 0, None, 0)
+            self.set_cursor_flag = False
             logger.info('恢复鼠标图标')
         except Exception as e:
             logger.error(f'恢复鼠标图标失败: {e}')
@@ -283,9 +277,6 @@ class Macro:
 
         return False
 
-    def _hook_mouse_move(self, event: MouseEvent):
-        self.position = event.position
-        return False
 
     def __del__(self):
         self.stop()

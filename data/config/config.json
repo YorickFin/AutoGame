@@ -8,7 +8,8 @@
         "quality": "unlimited",
         "bitrate": 10,
         "fpsLimit": 120,
-        "aspectRatio": "reset"
+        "aspectRatio": "reset",
+        "showFps": true
     },
     "keyMappingFile": "新建键位1"
 }
