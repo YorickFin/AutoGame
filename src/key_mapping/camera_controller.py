@@ -257,20 +257,32 @@ class CameraController:
                 time.sleep(0.01)
                 continue
 
-            # 将原始增量乘以灵敏度系数得到触摸增量
             touch_dx = dx * sens
             touch_dy = dy * sens
 
             with self._lock:
                 new_tx = self._touch_x + touch_dx
                 new_ty = self._touch_y + touch_dy
-                clamped_tx = max(1, min(sw - 1, int(new_tx)))
-                clamped_ty = max(1, min(sh - 1, int(new_ty)))
-                self._touch_x = clamped_tx
-                self._touch_y = clamped_ty
+
+                if new_tx < 1 or new_tx >= sw or new_ty < 1 or new_ty >= sh:
+                    self._scrcpy_manager.send_normalized_touch(
+                        1, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
+                    )
+
+                    center_x = int(self._center[0] * sw)
+                    center_y = int(self._center[1] * sh)
+                    resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
+                    if resp.get("ok"):
+                        pid = resp.get("pointer_id")
+
+                    self._touch_x = center_x
+                    self._touch_y = center_y
+                else:
+                    self._touch_x = int(new_tx)
+                    self._touch_y = int(new_ty)
 
             self._scrcpy_manager.send_normalized_touch(
-                2, clamped_tx / sw, clamped_ty / sh, pointer_id=pid,
+                2, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
             )
 
             time.sleep(0.01)
