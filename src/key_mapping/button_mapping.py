@@ -72,6 +72,8 @@ class ButtonMapping:
         dx = sum(ButtonMapping._DIR_VECTORS[key_to_dir[k]][0] for k in pressed_keys if k in key_to_dir)
         dy = sum(ButtonMapping._DIR_VECTORS[key_to_dir[k]][1] for k in pressed_keys if k in key_to_dir)
 
+        radius = radius * 2
+
         if sw is not None and sh is not None and sw > 0 and sh > 0 and dx != 0 and dy != 0:
             dx_w = dx / sw
             dy_w = dy / sh
@@ -135,29 +137,28 @@ class ButtonMapping:
             _sw, _sh = self._scrcpy_manager._last_session if self._scrcpy_manager._last_session else (None, None)
 
             if dpad_idx not in self._dpad_states:
-                self._dpad_states[dpad_idx] = {"pressed": set(), "pid": None, "ex": 0.0, "ey": 0.0}
+                self._dpad_states[dpad_idx] = {"pressed": set(), "keys_down": set(), "pid": None, "ex": 0.0, "ey": 0.0}
 
             state = self._dpad_states[dpad_idx]
 
             if key_name in state["pressed"]:
                 return True
 
-            old_pressed = set(state["pressed"])
-
             new_dir_name = key_to_dir[key_name]
             opposite_dir = self._OPPOSITE_DIRS.get(new_dir_name)
-            to_remove = None
-            if opposite_dir and opposite_dir in dir_to_key:
-                opp_key = dir_to_key[opposite_dir]
-                if opp_key in old_pressed:
-                    to_remove = opp_key
 
+            # 记录物理按键状态
+            state["keys_down"].add(key_name)
+
+            old_pressed = set(state["pressed"])
             old_edge = self._resolve_edge(old_pressed, key_to_dir, cx, cy, radius, _sw, _sh)
 
             new_pressed = set(old_pressed)
-            if to_remove:
-                new_pressed.discard(to_remove)
             new_pressed.add(key_name)
+            if opposite_dir and opposite_dir in dir_to_key:
+                opp_key = dir_to_key[opposite_dir]
+                if opp_key in new_pressed:
+                    new_pressed.remove(opp_key)
             state["pressed"] = new_pressed
 
             new_edge = self._resolve_edge(new_pressed, key_to_dir, cx, cy, radius, _sw, _sh)
@@ -221,10 +222,12 @@ class ButtonMapping:
             keys_config = dpad.get("keys", {})
 
             key_to_dir = {}
+            dir_to_key = {}
             for dir_name, info in keys_config.items():
                 k = info.get("key")
                 if k:
                     key_to_dir[k] = dir_name
+                    dir_to_key[dir_name] = k
 
             if key_name not in key_to_dir:
                 continue
@@ -233,8 +236,27 @@ class ButtonMapping:
                 return True
 
             state = self._dpad_states[dpad_idx]
+
+            new_dir_name = key_to_dir[key_name]
+            opposite_dir = self._OPPOSITE_DIRS.get(new_dir_name)
+
+            # 1. 移除物理按键记录
+            state["keys_down"].discard(key_name)
+
+            # 2. 如果该键不在触摸活跃集合中（被覆盖了），不处理触摸
+            if key_name not in state["pressed"]:
+                return True
+
+            # 3. 从活跃集合中移除
             state["pressed"].discard(key_name)
 
+            # 4. 检查相反方向是否还在物理按下 → 恢复
+            if opposite_dir and opposite_dir in dir_to_key:
+                opp_key = dir_to_key[opposite_dir]
+                if opp_key in state["keys_down"]:
+                    state["pressed"].add(opp_key)
+
+            # 5. 后续触摸释放/移动逻辑
             if not state["pressed"]:
                 if state["pid"] is not None:
                     self._scrcpy_manager.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])

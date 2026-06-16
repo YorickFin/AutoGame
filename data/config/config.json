@@ -8,7 +8,8 @@
         "quality": "unlimited",
         "bitrate": 10,
         "fpsLimit": 120,
-        "aspectRatio": "reset"
+        "aspectRatio": "reset",
+        "showFps": true
     },
-    "keyMappingFile": "遗产拍卖行"
+    "keyMappingFile": "新建键位1"
 }

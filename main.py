@@ -1,16 +1,16 @@
-﻿# 打包为exe文件: pyinstaller main.spec -y
+# 打包为exe文件: pyinstaller main.spec -y
 
 import logging
 import webview
+import pystray
 import subprocess
 from threading import Thread
 from PIL import Image
-import pystray
 from src.api import Api
 from src.services import services
-from src.utils import WebView2Checker, UtilsFile, utils_path, ocr
+from src.utils import WebView2Checker, UtilsFile, UtilsUpdate, utils_path, ocr
 from src.macro import Macro
-from src.key_mapping import KeyMappingExecutor
+from src.key_mapping import KeyMapping
 from src.scrcpy import ScrcpyManager, WsStreamServer
 
 
@@ -26,9 +26,13 @@ class AutoGameApp:
         services.scrcpy_manager = ScrcpyManager()
         services.api = Api()
         services.macro = Macro()
-        services.key_mapping_executor = KeyMappingExecutor()
+        services.key_mapping = KeyMapping()
 
         self.webview2_checker = WebView2Checker()
+
+        # 初始化更新模块：提取内嵌的 update.exe / update.json
+        self.utils_update = UtilsUpdate()
+        self.utils_update.extract_bundled_files()
 
         self.debug = True
         self.window = None
@@ -136,6 +140,10 @@ class AutoGameApp:
             creationflags=subprocess.CREATE_NO_WINDOW
         )
 
+        # 退出时触发更新解压覆盖
+        if hasattr(self, 'utils_update'):
+            self.utils_update.apply_on_exit()
+
     def _create_tray(self):
         """
         创建系统托盘图标。
@@ -167,6 +175,10 @@ class AutoGameApp:
         self._create_window()
         Thread(target=self.run_tray).start()
         Thread(target=self._macro.start).start()
+
+        # 后台线程检查版本更新
+        self.utils_update.start_update_check()
+
         webview.start(debug=self.debug)
 
 
@@ -174,6 +186,3 @@ if __name__ == '__main__':
     app = AutoGameApp()
     app.webview2_checker.check_and_prompt()
     app.run()
-
-
-

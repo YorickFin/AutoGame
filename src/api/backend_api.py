@@ -27,8 +27,8 @@ class BackendApi:
         return services.scrcpy_manager
 
     @property
-    def _key_mapping_executor(self):
-        return services.key_mapping_executor
+    def _key_mapping(self):
+        return services.key_mapping
 
     def get_config_file(self):
         config = self._utils_file.load_config_file()
@@ -40,7 +40,7 @@ class BackendApi:
         return self._utils_file.save_config_file(config)
 
     def get_phone_input_state(self):
-        km = self._key_mapping_executor
+        km = self._key_mapping
         return {
             "keyboard_shown": km.keyboard_shown if km else None,
             "just_hidden": km.read_and_clear_just_hidden() if km else False,
@@ -98,8 +98,8 @@ class BackendApi:
         return {"key": key}
 
     def set_focus_state(self, focused):
-        if self._key_mapping_executor:
-            self._key_mapping_executor.set_focus_state(focused)
+        if self._key_mapping:
+            self._key_mapping.set_focus_state(focused)
         return {"ok": True}
 
     def get_mouse_position(self):
@@ -252,22 +252,22 @@ class BackendApi:
         if not data:
             return {"ok": False, "error": "failed to load key mapping"}
         self._scrcpy_manager.apply_key_mapping(data)
-        if self._key_mapping_executor:
-            self._key_mapping_executor.apply(data)
+        if self._key_mapping:
+            self._key_mapping.apply(data)
         return {"ok": True}
 
     def remove_key_mapping(self):
         self._scrcpy_manager.remove_key_mapping()
-        if self._key_mapping_executor:
-            self._key_mapping_executor.remove()
+        if self._key_mapping:
+            self._key_mapping.remove()
         return {"ok": True}
 
     def scrcpy_send_normalized_touch(self, action, x, y):
         return self._scrcpy_manager.send_normalized_touch(action, x, y)
 
     def get_key_mapping_mapped_keys(self):
-        if self._key_mapping_executor:
-            return list(self._key_mapping_executor.get_mapped_keys())
+        if self._key_mapping:
+            return list(self._key_mapping.get_mapped_keys())
         return []
 
     def key_mapping_trigger(self, key_name, action):
@@ -293,8 +293,8 @@ class BackendApi:
         return {"ok": False, "error": f"unknown ratio: {ratio}"}
 
     def has_mleft_key_configured(self):
-        if self._key_mapping_executor:
-            return self._key_mapping_executor.has_mleft_key_configured()
+        if self._key_mapping:
+            return self._key_mapping.has_mleft_key_configured()
         return False
 
     def __dir__(self):

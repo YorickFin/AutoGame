@@ -512,8 +512,6 @@ async function enterCameraMode(config?: { x: number; y: number }) {
   isCameraMode.value = true
   cameraCenterX = config?.x ?? 0.5
   cameraCenterY = config?.y ?? 0.5
-  // Hide cursor
-  viewport.value.style.cursor = 'none'
   console.log('Camera mode activated, center:', cameraCenterX, cameraCenterY)
 }
 
@@ -524,11 +522,6 @@ function exitCameraMode() {
     // Release pointer capture if active
     if (canvas.value) {
       try { canvas.value.releasePointerCapture(1) } catch (e) { console.log('releasePointerCapture failed:', e) }
-    }
-
-    // Show cursor
-    if (viewport.value) {
-      viewport.value.style.cursor = 'default'
     }
 
     console.log('Camera mode deactivated')
@@ -557,7 +550,7 @@ onMounted(async () => {
   if (viewport.value) resizeObserver.observe(viewport.value)
   window.addEventListener('blur', handleBlur)
   window.addEventListener('focus', handleFocus)
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeydown, true)
 
   // Register global camera mode function for backend to call
 
@@ -628,7 +621,6 @@ function onImeCompEnd(e: Event) {
 
 function onImeKeydown(e: KeyboardEvent) {
   if (e.key !== 'Backspace' || imeComposing) return
-  // Backspace while NOT composing: prevent IME from re-entering composition,
   e.preventDefault()
   const input = e.target as HTMLInputElement
   if (input.value.length > 0) {

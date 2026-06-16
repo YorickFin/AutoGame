@@ -1,5 +1,5 @@
-from .key_mapping_executor import KeyMappingExecutor
+from .key_mapping import KeyMapping
 
 __all__ = [
-    'KeyMappingExecutor',
+    'KeyMapping',
 ]
