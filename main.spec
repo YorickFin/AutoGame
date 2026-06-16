@@ -37,6 +37,11 @@ license_file = Path('LICENSE')
 if license_file.exists():
     datas.append((str(license_file), '.'))
 
+# 添加 update.exe（软件更新工具）
+update_exe = Path('update/dist/update.exe')
+if update_exe.exists():
+    datas.append((str(update_exe), '.'))
+
 a = Analysis(
     ['main.py'],
     pathex=[],
