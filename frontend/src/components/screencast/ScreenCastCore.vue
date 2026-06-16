@@ -550,7 +550,7 @@ onMounted(async () => {
   if (viewport.value) resizeObserver.observe(viewport.value)
   window.addEventListener('blur', handleBlur)
   window.addEventListener('focus', handleFocus)
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeydown, true)
 
   // Register global camera mode function for backend to call
 
@@ -620,10 +620,6 @@ function onImeCompEnd(e: Event) {
 }
 
 function onImeKeydown(e: KeyboardEvent) {
-  if (e.key === 'Tab') {
-    e.preventDefault()
-    return
-  }
   if (e.key !== 'Backspace' || imeComposing) return
   e.preventDefault()
   const input = e.target as HTMLInputElement
@@ -650,9 +646,6 @@ function handleFocus() {
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && isFullscreen.value) {
     toggleScrcpyFullscreen()
-  }
-  if (event.key === 'Tab') {
-    event.preventDefault()
   }
 }
 

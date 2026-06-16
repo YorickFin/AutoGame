@@ -186,7 +186,16 @@ async function pollForConfig() {
   console.warn('Failed to load config after multiple attempts')
 }
 
+function handleGlobalKeydown(e: KeyboardEvent) {
+  if (e.key === 'Tab') {
+    e.preventDefault()
+  }
+}
+
 onMounted(() => {
+  // 全局禁用 Tab 切换焦点的默认行为
+  window.addEventListener('keydown', handleGlobalKeydown, true)
+
   pollForConfig()
   // 每秒检查一次是否有新的错误
   if (typeof window.setInterval === 'function') {
@@ -215,6 +224,7 @@ onUnmounted(() => {
   if (logCheckInterval !== null) {
     clearInterval(logCheckInterval)
   }
+  window.removeEventListener('keydown', handleGlobalKeydown, true)
 })
 
 provide('theme', currentTheme)

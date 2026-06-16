@@ -537,6 +537,7 @@ function startSwipeRecording() {
 function createCameraControl() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
+  if (cameras.value.length > 0) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
   const cam = {
     id: controlId("cam"),
@@ -556,6 +557,7 @@ function createCameraControl() {
 function createCameraLocalControl() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
+  if (cameras.value.length === 0) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
   const cam = {
     id: controlId("caml"),
@@ -681,8 +683,13 @@ function removeControl(id: string) {
   dpads.value = dpads.value.filter(d => d.id !== id)
   const removedSwipe = swipes.value.find(s => s.id === id)
   swipes.value = swipes.value.filter(s => s.id !== id)
+  const removedCamera = cameras.value.find(cam => cam.id === id)
   cameras.value = cameras.value.filter(cam => cam.id !== id)
-  cameras_local.value = cameras_local.value.filter(cam => cam.id !== id)
+  if (removedCamera) {
+    cameras_local.value = []
+  } else {
+    cameras_local.value = cameras_local.value.filter(cam => cam.id !== id)
+  }
   if (removedSwipe && lastSwipePath.value.length > 0) {
     if (JSON.stringify(lastSwipePath.value) === JSON.stringify(removedSwipe.path)) {
       lastSwipePath.value = []

@@ -113,15 +113,15 @@ class KeyMapping:
             if key_code:
                 self._scrcpy_manager.send_keycode(key_code, 1)
 
-        # Let button mapping handle controls and dpad
-        if self._button_mapping.on_key_up(key_name):
-            return True
-
-        # Handle local camera controls
+        # Handle local camera controls (must precede button_mapping to match on_key_down priority)
         for cam_local in self._active_mapping.get("cameras_local", []):
             if cam_local.get("key") == key_name:
                 if self._local_camera.on_key_up(cam_local):
                     return True
+
+        # Let button mapping handle controls and dpad
+        if self._button_mapping.on_key_up(key_name):
+            return True
 
         return False
 
