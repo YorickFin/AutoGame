@@ -1,4 +1,4 @@
-# 打包为exe文件: pyinstaller main.spec -y
+﻿# 打包为exe文件: pyinstaller main.spec -y
 
 import logging
 import webview
@@ -79,7 +79,7 @@ class AutoGameApp:
                 self.debug = False
                 return str(index_path)
         # 开发环境
-        self.debug = True
+        self.debug = False
         return 'http://localhost:5173'
 
     def _create_window(self):
