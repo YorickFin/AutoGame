@@ -60,6 +60,8 @@ class CameraController:
         self._poll_stop = threading.Event()
         self._pointer_id: Optional[int] = None
         self._local_touch_active = False
+        self._prev_local_touch_active = False  # 用于检测 _local_touch_active 的边沿变化
+        self._global_release_event = threading.Event()  # 全局 UP 完成信号，供局部等待
 
         # Raw input listener for unbounded mouse deltas
         self._raw_input = RawInputListener()
@@ -212,11 +214,16 @@ class CameraController:
         # Stop raw input listener
         self._raw_input.stop()
 
+        # 释放可能正在等待的局部线程
+        self._global_release_event.set()
+        self._global_release_event.clear()
+
         self._unlock_mouse()
 
         self._active = False
         self._config = None
         self._local_touch_active = False
+        self._prev_local_touch_active = False
 
     def reset(self):
         """Reset all camera state."""
@@ -231,6 +238,8 @@ class CameraController:
         self._mouse_locked = False
         self._screen_center = (0, 0)
         self._local_touch_active = False
+        self._prev_local_touch_active = False
+        self._global_release_event.clear()
 
 
     def notify_state_change(self, api):
@@ -251,16 +260,38 @@ class CameraController:
         sh = self._screen_height
         sens = self._sensitivity
         raw = self._raw_input
+        # 同步局部状态追踪变量，防止启动前已被设置
+        prev_local = self._local_touch_active
 
         while not self._poll_stop.is_set():
 
-            dx, dy = raw.read_deltas()
-            if dx == 0 and dy == 0:
+            # ---- 检测局部触摸状态变化边沿（每轮都执行，不依赖 deltas）----
+            if self._local_touch_active and not prev_local:
+                # 上升沿：局部接管 → 释放全局触摸点
+                if self._pointer_id is not None:
+                    self._scrcpy_manager.send_normalized_touch(
+                        1, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                    )
+                    self._pointer_id = None
+                self._global_release_event.set()
+            elif not self._local_touch_active and prev_local:
+                # 下降沿：局部释放 → 在中心重新建立全局触摸点
+                self._touch_x = int(self._center[0] * sw)
+                self._touch_y = int(self._center[1] * sh)
+                resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
+                if resp.get("ok"):
+                    self._pointer_id = resp.get("pointer_id")
+
+            prev_local = self._local_touch_active
+            self._prev_local_touch_active = self._local_touch_active
+
+            # 局部激活时跳过 read_deltas，让局部 poll_loop 消费
+            if self._local_touch_active:
                 time.sleep(0.01)
                 continue
 
-            # 局部触摸激活时，全局视角停在原地，但继续消费 delta 避免堆积
-            if self._local_touch_active:
+            dx, dy = raw.read_deltas()
+            if dx == 0 and dy == 0:
                 time.sleep(0.01)
                 continue
 
@@ -310,12 +341,15 @@ class LocalCameraController:
     弹起绑定键时：局部 up-touch（不干扰全局）
     """
 
-    def __init__(self, global_controller: CameraController):
-        self._global = global_controller
+    def __init__(self):
         self._down_keys: dict[str, tuple[int, int, int]] = {}  # key -> (pointer_id, touch_x, touch_y)
         self._poll_thread = None
         self._poll_stop = threading.Event()
         self._lock = threading.Lock()
+
+    @property
+    def _global_camera(self):
+        return services.camera_controller
 
     @property
     def _scrcpy_manager(self):
@@ -333,7 +367,7 @@ class LocalCameraController:
 
     def on_key_down(self, config: dict) -> bool:
         """按下绑定键：在局部位置 dn-touch（不干扰全局）"""
-        if not self._global.active:
+        if not self._global_camera.active:
             return False  # 全局未开启，局部不生效
 
         key_name = config.get("key")
@@ -345,13 +379,18 @@ class LocalCameraController:
         if not sw or not sh:
             return False
 
-        # 在按钮位置 dn-touch（使用 send_normalized_touch 获取 pointer_id）
         lx = config['x']
         ly = config['y']
 
         with self._lock:
             if key_name in self._down_keys:
                 return False
+
+        # 先通知全局释放触摸点，等待完成后再发送局部 DN
+        gc = self._global_camera
+        gc._local_touch_active = True
+        gc._global_release_event.wait(timeout=1.0)
+        gc._global_release_event.clear()
 
         resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
         if not resp.get("ok"):
@@ -363,7 +402,6 @@ class LocalCameraController:
 
         with self._lock:
             self._down_keys[key_name] = (pid, int(lx * sw), int(ly * sh))
-            self._global._local_touch_active = True
 
         # 启动局部 poll_loop（如果还没有）
         if not self._poll_thread or not self._poll_thread.is_alive():
@@ -383,14 +421,14 @@ class LocalCameraController:
 
     def _poll_loop(self):
         """局部控制的鼠标轮询：使用原始鼠标增量数据"""
-        raw = self._global._raw_input
-        sens = self._global._sensitivity
+        raw = self._global_camera._raw_input
+        sens = self._global_camera._sensitivity
         sw, sh = self._scrcpy_manager._last_session
         if not sw or not sh:
             return
 
         while not self._poll_stop.is_set():
-            dx, dy = raw.peek_deltas()
+            dx, dy = raw.read_deltas()
             if dx == 0 and dy == 0:
                 time.sleep(0.01)
                 continue
@@ -434,12 +472,12 @@ class LocalCameraController:
                 self._down_keys.clear()
             return True
 
-        # 局部 up-touch（不恢复全局，因为全局的 _poll_loop 一直在运行）
+        # 局部 up-touch
         self._scrcpy_manager.send_normalized_touch(1, lx / sw, ly / sh, pointer_id=pid)
 
         with self._lock:
             if not self._down_keys:
-                self._global._local_touch_active = False
+                self._global_camera._local_touch_active = False
                 should_stop = True
             else:
                 should_stop = False
