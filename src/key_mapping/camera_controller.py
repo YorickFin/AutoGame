@@ -354,6 +354,9 @@ class LocalCameraController:
             return False  # 全局未开启，局部不生效
 
         key_name = config.get("key")
+        if not key_name:
+            return False
+
 
         sw, sh = self._scrcpy_manager._last_session
         if not sw or not sh:
@@ -362,18 +365,20 @@ class LocalCameraController:
         # 在按钮位置 dn-touch（使用 send_normalized_touch 获取 pointer_id）
         lx = config['x']
         ly = config['y']
-        resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
-
-        if not resp.get("ok"):
-            return True
-
-        pid = resp.get("pointer_id")
-        if pid is None:
-            return True
 
         with self._lock:
-            if not key_name or key_name in self._down_keys:
+            if key_name in self._down_keys:
                 return False
+
+            # 在锁内分配 ID：确保不会因重复调用而泄漏
+            resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
+            if not resp.get("ok"):
+                return True
+
+            pid = resp.get("pointer_id")
+            if pid is None:
+                return True
+
             self._down_keys[key_name] = (pid, int(lx * sw), int(ly * sh))
 
         # 启动局部 poll_loop（如果还没有）
