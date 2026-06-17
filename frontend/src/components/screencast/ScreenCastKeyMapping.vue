@@ -89,10 +89,10 @@
     </div>
     <div v-if="contextMenu.show" class="context-menu"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
-      <div @click="createMouseLeft">鼠标左键</div>
-      <div @click="createMouseRight">鼠标右键</div>
       <div @click="startSwipeRecording">滑动键位</div>
       <div @click="createDirectionKey">方向轮盘</div>
+      <div @click="createMouseLeft">鼠标左键</div>
+      <div @click="createMouseRight">鼠标右键</div>
       <div @click="createCameraControl">全局3D控制</div>
       <div @click="createCameraLocalControl">局部3D控制</div>
     </div>
@@ -473,6 +473,8 @@ function onCanvasRightClick(e: MouseEvent) {
 function createMouseLeft() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
+  // 限制只能创建一个鼠标左键
+  if (cameras_local.value.some(cam => cam.key === "MLeft")) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
   const cam = {
     id: controlId("caml"),
@@ -490,6 +492,8 @@ function createMouseLeft() {
 function createMouseRight() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
+  // 限制只能创建一个鼠标右键
+  if (cameras_local.value.some(cam => cam.key === "MRight")) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
   const cam = {
     id: controlId("caml"),
