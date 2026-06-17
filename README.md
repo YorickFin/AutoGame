@@ -43,6 +43,10 @@
         cd frontend
         pnpm run build
 
+构建自更新模块:
+        cd update
+        uv run pyinstaller update.spec -y
+
 打包为可执行文件: pyinstaller main.spec -y
 ```
 

@@ -58,8 +58,9 @@ class CameraController:
         self._sensitivity = 1.0
         self._poll_thread = None
         self._poll_stop = threading.Event()
-        self._lock = threading.Lock()
         self._pointer_id: Optional[int] = None
+        self._local_touch_active = False
+        self._prev_local_touch_active = False  # 用于检测 _local_touch_active 的边沿变化
 
         # Raw input listener for unbounded mouse deltas
         self._raw_input = RawInputListener()
@@ -216,6 +217,8 @@ class CameraController:
 
         self._active = False
         self._config = None
+        self._local_touch_active = False
+        self._prev_local_touch_active = False
 
     def reset(self):
         """Reset all camera state."""
@@ -229,6 +232,9 @@ class CameraController:
         self._pointer_id = None
         self._mouse_locked = False
         self._screen_center = (0, 0)
+        self._local_touch_active = False
+        self._prev_local_touch_active = False
+
 
     def notify_state_change(self, api):
         """Notify frontend about camera mode state change."""
@@ -247,10 +253,35 @@ class CameraController:
         sw = self._screen_width
         sh = self._screen_height
         sens = self._sensitivity
-        pid = self._pointer_id
         raw = self._raw_input
+        # 同步局部状态追踪变量，防止启动前已被设置
+        prev_local = self._local_touch_active
 
         while not self._poll_stop.is_set():
+
+            # ---- 检测局部触摸状态变化边沿（每轮都执行，不依赖 deltas）----
+            if self._local_touch_active and not prev_local:
+                # 上升沿：局部接管 → 释放全局触摸点
+                if self._pointer_id is not None:
+                    self._scrcpy_manager.send_normalized_touch(
+                        1, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                    )
+                    self._pointer_id = None
+            elif not self._local_touch_active and prev_local:
+                # 下降沿：局部释放 → 在中心重新建立全局触摸点
+                self._touch_x = int(self._center[0] * sw)
+                self._touch_y = int(self._center[1] * sh)
+                resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
+                if resp.get("ok"):
+                    self._pointer_id = resp.get("pointer_id")
+
+            prev_local = self._local_touch_active
+            self._prev_local_touch_active = self._local_touch_active
+
+            # 局部激活时跳过 read_deltas，让局部 poll_loop 消费
+            if self._local_touch_active:
+                time.sleep(0.01)
+                continue
 
             dx, dy = raw.read_deltas()
             if dx == 0 and dy == 0:
@@ -260,30 +291,38 @@ class CameraController:
             touch_dx = dx * sens
             touch_dy = dy * sens
 
-            with self._lock:
-                new_tx = self._touch_x + touch_dx
-                new_ty = self._touch_y + touch_dy
+            new_tx = self._touch_x + touch_dx
+            new_ty = self._touch_y + touch_dy
 
-                if new_tx < 1 or new_tx >= sw or new_ty < 1 or new_ty >= sh:
-                    self._scrcpy_manager.send_normalized_touch(
-                        1, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
-                    )
+            need_recreate = (new_tx < 1 or new_tx >= sw or new_ty < 1 or new_ty >= sh)
+            if need_recreate:
+                old_pointer_id = self._pointer_id
+                touch_x = self._touch_x
+                touch_y = self._touch_y
 
-                    center_x = int(self._center[0] * sw)
-                    center_y = int(self._center[1] * sh)
-                    resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
-                    if resp.get("ok"):
-                        pid = resp.get("pointer_id")
+            if need_recreate:
+                self._scrcpy_manager.send_normalized_touch(
+                    1, touch_x / sw, touch_y / sh, pointer_id=old_pointer_id,
+                )
 
-                    self._touch_x = center_x
-                    self._touch_y = center_y
-                else:
-                    self._touch_x = int(new_tx)
-                    self._touch_y = int(new_ty)
+                center_x = int(self._center[0] * sw)
+                center_y = int(self._center[1] * sh)
+                resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
+                if resp.get("ok"):
+                    self._pointer_id = resp.get("pointer_id")
+                self._touch_x = center_x
+                self._touch_y = center_y
 
-            self._scrcpy_manager.send_normalized_touch(
-                2, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
-            )
+                self._scrcpy_manager.send_normalized_touch(
+                    2, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                )
+            else:
+                self._touch_x = int(new_tx)
+                self._touch_y = int(new_ty)
+
+                self._scrcpy_manager.send_normalized_touch(
+                    2, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                )
 
             time.sleep(0.01)
 
@@ -295,12 +334,15 @@ class LocalCameraController:
     弹起绑定键时：局部 up-touch（不干扰全局）
     """
 
-    def __init__(self, global_controller: CameraController):
-        self._global = global_controller
+    def __init__(self):
         self._down_keys: dict[str, tuple[int, int, int]] = {}  # key -> (pointer_id, touch_x, touch_y)
         self._poll_thread = None
         self._poll_stop = threading.Event()
         self._lock = threading.Lock()
+
+    @property
+    def _global_camera(self):
+        return services.camera_controller
 
     @property
     def _scrcpy_manager(self):
@@ -318,20 +360,27 @@ class LocalCameraController:
 
     def on_key_down(self, config: dict) -> bool:
         """按下绑定键：在局部位置 dn-touch（不干扰全局）"""
-        if not self._global.active:
+        if not self._global_camera.active:
             return False  # 全局未开启，局部不生效
 
         key_name = config.get("key")
+        if not key_name:
+            return False
+
 
         sw, sh = self._scrcpy_manager._last_session
         if not sw or not sh:
             return False
 
-        # 在按钮位置 dn-touch（使用 send_normalized_touch 获取 pointer_id）
         lx = config['x']
         ly = config['y']
-        resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
 
+        with self._lock:
+            if key_name in self._down_keys:
+                return False
+
+        # 先发局部 DN，再通知全局释放触摸点（保证 DN 先于 UP 到达）
+        resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
         if not resp.get("ok"):
             return True
 
@@ -340,9 +389,8 @@ class LocalCameraController:
             return True
 
         with self._lock:
-            if not key_name or key_name in self._down_keys:
-                return False
             self._down_keys[key_name] = (pid, int(lx * sw), int(ly * sh))
+            self._global_camera._local_touch_active = True
 
         # 启动局部 poll_loop（如果还没有）
         if not self._poll_thread or not self._poll_thread.is_alive():
@@ -362,14 +410,14 @@ class LocalCameraController:
 
     def _poll_loop(self):
         """局部控制的鼠标轮询：使用原始鼠标增量数据"""
-        raw = self._global._raw_input
-        sens = self._global._sensitivity
+        raw = self._global_camera._raw_input
+        sens = self._global_camera._sensitivity
         sw, sh = self._scrcpy_manager._last_session
         if not sw or not sh:
             return
 
         while not self._poll_stop.is_set():
-            dx, dy = raw.peek_deltas()
+            dx, dy = raw.read_deltas()
             if dx == 0 and dy == 0:
                 time.sleep(0.01)
                 continue
@@ -381,19 +429,20 @@ class LocalCameraController:
                 if not self._down_keys:
                     continue
 
-                # 更新所有活跃的局部触摸点
-                new_states = {}
+                snapshot = {}
                 for key_name, (pid, tx, ty) in self._down_keys.items():
                     new_tx = tx + pixel_dx
                     new_ty = ty + pixel_dy
                     clamped_tx = max(1, min(sw - 1, int(new_tx)))
                     clamped_ty = max(1, min(sh - 1, int(new_ty)))
-                    new_states[key_name] = (pid, clamped_tx, clamped_ty)
-                    self._scrcpy_manager.send_normalized_touch(2, clamped_tx / sw, clamped_ty / sh, pointer_id=pid)
+                    snapshot[key_name] = (pid, clamped_tx, clamped_ty)
 
-                # 写回状态
                 self._down_keys.clear()
-                self._down_keys.update(new_states)
+                self._down_keys.update(snapshot)
+
+            # 锁外发送 MOVE，避免 I/O 阻塞状态更新
+            for key_name, (pid, clamped_tx, clamped_ty) in snapshot.items():
+                self._scrcpy_manager.send_normalized_touch(2, clamped_tx / sw, clamped_ty / sh, pointer_id=pid)
 
             time.sleep(0.01)
 
@@ -412,12 +461,18 @@ class LocalCameraController:
                 self._down_keys.clear()
             return True
 
-        # 局部 up-touch（不恢复全局，因为全局的 _poll_loop 一直在运行）
+        # 局部 up-touch（不恢复全局，因为全局的 _poll_loop 已经在下降沿处理）
         self._scrcpy_manager.send_normalized_touch(1, lx / sw, ly / sh, pointer_id=pid)
 
         with self._lock:
             if not self._down_keys:
-                self._stop_poll_loop()
+                self._global_camera._local_touch_active = False
+                should_stop = True
+            else:
+                should_stop = False
+
+        if should_stop:
+            self._stop_poll_loop()
 
         return True
 

@@ -1,4 +1,4 @@
-"""Key mapping executor that orchestrates button mapping, input detection, and camera control."""
+﻿"""Key mapping executor that orchestrates button mapping, input detection, and camera control."""
 
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ class KeyMapping:
     def __init__(self):
         self._button_mapping = ButtonMapping()
         self._camera = CameraController()
-        self._local_camera = LocalCameraController(self._camera)
+        services.camera_controller = self._camera
+        self._local_camera = LocalCameraController()
         self._input = InputDetector()
         self._enabled = False
         self._enabled_before_focus = False
