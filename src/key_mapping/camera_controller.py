@@ -230,6 +230,15 @@ class CameraController:
         self._mouse_locked = False
         self._screen_center = (0, 0)
 
+    def notify_local_camera_pointer_invalidated(self, old_pointer_id):
+        """通知局部控制指定的指针已失效（通常在边界重置时调用）。
+
+        当全局触摸点在边界处被重置时，旧指针会被释放并创建新指针。
+        此方法通知 LocalCameraController 清理与旧指针相关的状态。
+        """
+        if hasattr(self, '_local_camera') and self._local_camera:
+            self._local_camera.on_global_pointer_invalidated(old_pointer_id)
+
     def notify_state_change(self, api):
         """Notify frontend about camera mode state change."""
         if api:
@@ -247,7 +256,6 @@ class CameraController:
         sw = self._screen_width
         sh = self._screen_height
         sens = self._sensitivity
-        pid = self._pointer_id
         raw = self._raw_input
 
         while not self._poll_stop.is_set():
@@ -260,30 +268,54 @@ class CameraController:
             touch_dx = dx * sens
             touch_dy = dy * sens
 
-            with self._lock:
+            # 获取锁来更新状态
+            self._lock.acquire()
+            try:
                 new_tx = self._touch_x + touch_dx
                 new_ty = self._touch_y + touch_dy
 
-                if new_tx < 1 or new_tx >= sw or new_ty < 1 or new_ty >= sh:
-                    self._scrcpy_manager.send_normalized_touch(
-                        1, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
-                    )
+                need_recreate = (new_tx < 1 or new_tx >= sw or new_ty < 1 or new_ty >= sh)
+                if need_recreate:
+                    old_pointer_id = self._pointer_id
+                    touch_x = self._touch_x
+                    touch_y = self._touch_y
+            finally:
+                self._lock.release()
 
+            if need_recreate:
+                # 释放锁后再发送 touch_up 和通知，避免死锁
+                self._scrcpy_manager.send_normalized_touch(
+                    1, touch_x / sw, touch_y / sh, pointer_id=old_pointer_id,
+                )
+                # 通知局部控制：全局指针已失效
+                self.notify_local_camera_pointer_invalidated(old_pointer_id)
+
+                self._lock.acquire()
+                try:
                     center_x = int(self._center[0] * sw)
                     center_y = int(self._center[1] * sh)
                     resp = self._scrcpy_manager.send_normalized_touch(0, self._center[0], self._center[1])
                     if resp.get("ok"):
-                        pid = resp.get("pointer_id")
-
+                        self._pointer_id = resp.get("pointer_id")
                     self._touch_x = center_x
                     self._touch_y = center_y
-                else:
+                finally:
+                    self._lock.release()
+
+                self._scrcpy_manager.send_normalized_touch(
+                    2, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                )
+            else:
+                self._lock.acquire()
+                try:
                     self._touch_x = int(new_tx)
                     self._touch_y = int(new_ty)
+                finally:
+                    self._lock.release()
 
-            self._scrcpy_manager.send_normalized_touch(
-                2, self._touch_x / sw, self._touch_y / sh, pointer_id=pid,
-            )
+                self._scrcpy_manager.send_normalized_touch(
+                    2, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
+                )
 
             time.sleep(0.01)
 
@@ -420,6 +452,39 @@ class LocalCameraController:
                 self._stop_poll_loop()
 
         return True
+
+    def on_global_pointer_invalidated(self, old_pointer_id: int):
+        """当全局指针被重置/失效时调用。
+
+        清理所有使用该指针ID的局部触摸点状态。
+        这发生在 CameraController 在边界处重置触摸点时。
+        """
+        with self._lock:
+            if not self._down_keys:
+                return
+
+            # 查找使用旧指针的所有局部键
+            keys_to_remove = [
+                key for key, (pid, _, _) in self._down_keys.items()
+                if pid == old_pointer_id
+            ]
+
+            if not keys_to_remove:
+                return
+
+            sw, sh = self._scrcpy_manager._last_session
+            if not sw or not sh:
+                self._down_keys.clear()
+                self._stop_poll_loop()
+                return
+
+            # 向所有受影响的指针发送 up-touch 并清理状态
+            for key_name in keys_to_remove:
+                pid, lx, ly = self._down_keys.pop(key_name)
+                self._scrcpy_manager.send_normalized_touch(1, lx / sw, ly / sh, pointer_id=pid)
+
+            if not self._down_keys:
+                self._stop_poll_loop()
 
     def _stop_poll_loop(self):
         """停止局部控制的原始输入轮询"""
