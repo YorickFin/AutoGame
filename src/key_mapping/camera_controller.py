@@ -61,6 +61,7 @@ class CameraController:
         self._pointer_id: Optional[int] = None
         self._local_touch_active = False
         self._prev_local_touch_active = False  # 用于检测 _local_touch_active 的边沿变化
+        self._global_release_event = threading.Event()  # 全局 UP 完成信号，供局部等待
 
         # Raw input listener for unbounded mouse deltas
         self._raw_input = RawInputListener()
@@ -213,6 +214,10 @@ class CameraController:
         # Stop raw input listener
         self._raw_input.stop()
 
+        # 释放可能正在等待的局部线程
+        self._global_release_event.set()
+        self._global_release_event.clear()
+
         self._unlock_mouse()
 
         self._active = False
@@ -234,6 +239,7 @@ class CameraController:
         self._screen_center = (0, 0)
         self._local_touch_active = False
         self._prev_local_touch_active = False
+        self._global_release_event.clear()
 
 
     def notify_state_change(self, api):
@@ -267,6 +273,7 @@ class CameraController:
                         1, self._touch_x / sw, self._touch_y / sh, pointer_id=self._pointer_id,
                     )
                     self._pointer_id = None
+                self._global_release_event.set()
             elif not self._local_touch_active and prev_local:
                 # 下降沿：局部释放 → 在中心重新建立全局触摸点
                 self._touch_x = int(self._center[0] * sw)
@@ -379,8 +386,17 @@ class LocalCameraController:
             if key_name in self._down_keys:
                 return False
 
-        # 先发局部 DN，再通知全局释放触摸点（保证 DN 先于 UP 到达）
-        resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly)
+        # Event 方案：先通知全局释放触摸点，等待完成后再发送局部 DN
+        gc = self._global_camera
+        gc._local_touch_active = True
+        gc._global_release_event.wait(timeout=1.0)
+        gc._global_release_event.clear()
+
+        time.sleep(0.025)
+
+        # 选一个和全局不同的 pointer_id
+        local_pid = 9 if (gc._pointer_id is None or gc._pointer_id != 9) else 8
+        resp = self._scrcpy_manager.send_normalized_touch(0, lx, ly, pointer_id=local_pid)
         if not resp.get("ok"):
             return True
 
@@ -390,7 +406,6 @@ class LocalCameraController:
 
         with self._lock:
             self._down_keys[key_name] = (pid, int(lx * sw), int(ly * sh))
-            self._global_camera._local_touch_active = True
 
         # 启动局部 poll_loop（如果还没有）
         if not self._poll_thread or not self._poll_thread.is_alive():
@@ -461,7 +476,7 @@ class LocalCameraController:
                 self._down_keys.clear()
             return True
 
-        # 局部 up-touch（不恢复全局，因为全局的 _poll_loop 已经在下降沿处理）
+        # 局部 up-touch
         self._scrcpy_manager.send_normalized_touch(1, lx / sw, ly / sh, pointer_id=pid)
 
         with self._lock:
