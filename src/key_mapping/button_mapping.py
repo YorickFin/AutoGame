@@ -1,4 +1,4 @@
-"""Button mapping executor for controls, swipes, and dpad operations."""
+﻿"""Button mapping executor for controls, swipes, and dpad operations."""
 
 from __future__ import annotations
 
@@ -74,18 +74,25 @@ class ButtonMapping:
 
         radius = radius * 2
 
-        if sw is not None and sh is not None and sw > 0 and sh > 0 and dx != 0 and dy != 0:
-            dx_w = dx / sw
-            dy_w = dy / sh
-            length_w = math.sqrt(dx_w * dx_w + dy_w * dy_w)
-            if length_w == 0:
-                return None
-            return (cx + dx_w / length_w * radius, cy + dy_w / length_w * radius)
-
         length = math.sqrt(dx * dx + dy * dy)
         if length == 0:
             return None
-        return (cx + dx / length * radius, cy + dy / length * radius)
+        # Normalize direction vector
+        ndx = dx / length
+        ndy = dy / length
+
+        if sw is not None and sh is not None and sw > 0 and sh > 0:
+            # Work in pixel space so all directions have equal pixel distance on the phone screen
+            # Use larger dimension for pixel radius
+            # Visual wheel on phone has radius = dpad.size * max(sw, sh) / 2
+            # Touch boundary = 1.5x visual wheel radius
+            pixel_radius = 2 * (radius / 4) * max(sw, sh)
+            # Edge in pixel coords, then convert back to normalized
+            return ((cx * sw + ndx * pixel_radius) / sw,
+                    (cy * sh + ndy * pixel_radius) / sh)
+
+        # Fallback: normalized coords only (no screen info available)
+        return (cx + ndx * radius, cy + ndy * radius)
 
     def on_key_down(self, key_name) -> bool:
         """Handle key press for button mapping operations."""
@@ -147,7 +154,7 @@ class ButtonMapping:
             new_dir_name = key_to_dir[key_name]
             opposite_dir = self._OPPOSITE_DIRS.get(new_dir_name)
 
-            # 记录物理按键状态
+            # 璁板綍鐗╃悊鎸夐敭鐘舵€?
             state["keys_down"].add(key_name)
 
             old_pressed = set(state["pressed"])
@@ -240,23 +247,23 @@ class ButtonMapping:
             new_dir_name = key_to_dir[key_name]
             opposite_dir = self._OPPOSITE_DIRS.get(new_dir_name)
 
-            # 1. 移除物理按键记录
+            # 1. 绉婚櫎鐗╃悊鎸夐敭璁板綍
             state["keys_down"].discard(key_name)
 
-            # 2. 如果该键不在触摸活跃集合中（被覆盖了），不处理触摸
+            # 2. 濡傛灉璇ラ敭涓嶅湪瑙︽懜娲昏穬闆嗗悎涓紙琚鐩栦簡锛夛紝涓嶅鐞嗚Е鎽?
             if key_name not in state["pressed"]:
                 return True
 
-            # 3. 从活跃集合中移除
+            # 3. 浠庢椿璺冮泦鍚堜腑绉婚櫎
             state["pressed"].discard(key_name)
 
-            # 4. 检查相反方向是否还在物理按下 → 恢复
+            # 4. 妫€鏌ョ浉鍙嶆柟鍚戞槸鍚﹁繕鍦ㄧ墿鐞嗘寜涓?鈫?鎭㈠
             if opposite_dir and opposite_dir in dir_to_key:
                 opp_key = dir_to_key[opposite_dir]
                 if opp_key in state["keys_down"]:
                     state["pressed"].add(opp_key)
 
-            # 5. 后续触摸释放/移动逻辑
+            # 5. 鍚庣画瑙︽懜閲婃斁/绉诲姩閫昏緫
             if not state["pressed"]:
                 if state["pid"] is not None:
                     self._scrcpy_manager.send_normalized_touch(1, state["ex"], state["ey"], pointer_id=state["pid"])

@@ -392,7 +392,7 @@ class LocalCameraController:
         gc._global_release_event.wait(timeout=1.0)
         gc._global_release_event.clear()
 
-        time.sleep(0.025)
+        time.sleep(0.03)
 
         # 选一个和全局不同的 pointer_id
         local_pid = 9 if (gc._pointer_id is None or gc._pointer_id != 9) else 8
