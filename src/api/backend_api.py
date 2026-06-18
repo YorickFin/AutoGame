@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class BackendApi:
     def __init__(self):
-        self._no_key_names = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
+        self._no_key_names = ['MLeft', 'Middle', 'MSide1', 'MSide2']
         self._maximized = False
 
     @property

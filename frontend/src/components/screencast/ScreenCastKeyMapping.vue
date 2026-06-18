@@ -92,7 +92,6 @@
       <div @click="startSwipeRecording">滑动键位</div>
       <div @click="createDirectionKey">方向轮盘</div>
       <div @click="createMouseLeft">鼠标左键</div>
-      <div @click="createMouseRight">鼠标右键</div>
       <div @click="createCameraControl">全局3D控制</div>
       <div @click="createCameraLocalControl">局部3D控制</div>
     </div>
@@ -489,32 +488,12 @@ function createMouseLeft() {
   autoSave()
 }
 
-function createMouseRight() {
-  contextMenu.value.show = false
-  if (!kmCanvasRef.value) return
-  // 限制只能创建一个鼠标右键
-  if (cameras_local.value.some(cam => cam.key === "MRight")) return
-  const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
-  const cam = {
-    id: controlId("caml"),
-    type: "camera_local",
-    key: "MRight",
-    label: "MRight",
-    x: norm.x,
-    y: norm.y,
-    radius: 15
-  }
-  cameras_local.value.push(cam)
-  autoSave()
-}
-
 function onControlMouseUp(e: MouseEvent, ctrl: any) {
   const dx = e.clientX - dragStartPos.x
   const dy = e.clientY - dragStartPos.y
   const distance = Math.sqrt(dx * dx + dy * dy)
   dragTarget = null
   if (distance > 5) return
-  if (ctrl && ctrl.isMouse) return
   editControl(ctrl)
 }
 
@@ -723,7 +702,7 @@ async function setupKeyCapture() {
 }
 
 async function processCapturedKey(key: string) {
-  if (key === "MLeft" || key === "MRight") {
+  if (key === "MLeft") {
     return
   }
   if (editingControlId.value) {

@@ -160,7 +160,7 @@ class UpdateManager:
                 with open(file, 'rb') as f:
                     file_data.extend(f.read())
 
-            result = str(zip_file_list[0]).split('-sp')[0]
+            result = str(zip_file_list[0]).split('-sp')[0] + '.zip'
             with open(result, 'wb') as f:
                 f.write(file_data)
 

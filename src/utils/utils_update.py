@@ -318,7 +318,7 @@ class UtilsUpdate:
                 cmd += ['-sha256', sha256]
             result = subprocess.run(
                 cmd,
-                capture_output=True, text=True, timeout=300,
+                capture_output=True, text=True,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
 
