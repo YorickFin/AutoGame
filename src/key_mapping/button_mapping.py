@@ -58,10 +58,6 @@ class ButtonMapping:
                 k = info.get("key")
                 if k:
                     keys.add(k)
-        for cam in self._active_mapping.get("camera", []):
-            k = cam.get("key")
-            if k:
-                keys.add(k)
         return keys
 
     @staticmethod

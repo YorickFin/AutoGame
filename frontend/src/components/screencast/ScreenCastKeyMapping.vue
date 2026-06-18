@@ -61,27 +61,18 @@
         <svg v-for="swp in swipes" :key="'path-' + swp.id" v-show="swp.path && swp.path.length > 1" class="swipe-preview saved-swipe">
           <polyline :points="swp.path.map((p: any) => (p.x * kmCanvasWidth) + ',' + (p.y * kmCanvasHeight)).join(' ')"></polyline>
         </svg>
-        <!-- Camera controls -->
+        <!-- Camera controls (global + local unified) -->
         <div v-for="cam in cameras" :key="cam.id"
              class="key-control camera"
-             :class="{ listening: editingControlId === cam.id }"
+             :class="{
+               listening: editingControlId === cam.id,
+               local: cam.type === 'camera_local'
+             }"
              :style="ctrlStyle(cam)"
              @mousedown.left.stop="startDrag($event, cam, 'camera')"
              @mouseup.left.stop="onControlMouseUp($event, cam)">
-          <div class="control-circle camera-circle">
-            <span class="control-label" :style="ctrlLabelStyle(cam)">{{ cam.label || '3D' }}</span>
-            <button class="control-close" @click.stop="removeControl(cam.id)" :style="controlCloseStyle(cam)">&times;</button>
-          </div>
-        </div>
-        <!-- Local Camera controls -->
-        <div v-for="cam in cameras_local" :key="cam.id"
-             class="key-control camera local"
-             :class="{ listening: editingControlId === cam.id }"
-             :style="ctrlStyle(cam)"
-             @mousedown.left.stop="startDrag($event, cam, 'camera_local')"
-             @mouseup.left.stop="onControlMouseUp($event, cam)">
-          <div class="control-circle camera-circle local">
-            <span class="control-label" :style="ctrlLabelStyle(cam)">{{ cam.label || 'LCam' }}</span>
+          <div class="control-circle camera-circle" :class="{ local: cam.type === 'camera_local' }">
+            <span class="control-label" :style="ctrlLabelStyle(cam)">{{ cam.label || (cam.type === 'camera_local' ? 'LCam' : '3D') }}</span>
             <button class="control-close" @click.stop="removeControl(cam.id)" :style="controlCloseStyle(cam)">&times;</button>
           </div>
         </div>
@@ -90,7 +81,7 @@
     <div v-if="contextMenu.show" class="context-menu"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
       <div @click="startSwipeRecording">滑动键位</div>
-      <div @click="createDirectionKey">方向轮盘</div>
+      <div @click="createDirectionKey">方向键盘</div>
       <div @click="createCameraControl">全局3D控制</div>
       <div @click="createCameraLocalControl">局部3D控制</div>
     </div>
@@ -195,7 +186,6 @@ const controls = ref<any[]>([])
 const dpads = ref<any[]>([])
 const swipes = ref<any[]>([])
 const cameras = ref<any[]>([])
-const cameras_local = ref<any[]>([])
 const contextMenu = ref({ show: false, x: 0, y: 0 })
 const editingControlId = ref<string | null>(null)
 const editingDpadId = ref<string | null>(null)
@@ -212,9 +202,9 @@ const renameInput = ref("")
 const renameInputRef = ref<HTMLInputElement | null>(null)
 const kmCanvasRef = ref<HTMLElement | null>(null)
 
-const scaleLandscape = ref(100)  // 横屏缩放百分比
-const scalePortrait = ref(200)   // 竖屏缩放百分比（默认大60%）
-const cameraSensitivity = ref(1.0)  // 视角灵敏度
+const scaleLandscape = ref(100)
+const scalePortrait = ref(200)
+const cameraSensitivity = ref(1.0)
 
 
 let dragTarget: any = null
@@ -373,13 +363,13 @@ async function switchFile(name: string, skipSave = false) {
       controls.value = (data.controls || []).map((c: any) => ({ ...c }))
       dpads.value = (data.dpad || []).map((d: any) => ({ ...d }))
       swipes.value = (data.swipes || []).map((s: any) => ({ ...s }))
-      cameras.value = (data.camera || []).map((cam: any) => ({ ...cam }))
-      cameras_local.value = (data.cameras_local || []).map((cam: any) => ({ ...cam }))
+      cameras.value = (data.cameras || []).map((cam: any) => ({ ...cam }))
       scaleLandscape.value = data.scaleLandscape ?? 100
       scalePortrait.value = data.scalePortrait ?? 200
       cameraSensitivity.value = data.cameraSensitivity ?? 1.0
     } else {
-      controls.value = []; dpads.value = []; swipes.value = []; cameras.value = []; cameras_local.value = []; scaleLandscape.value = 100; scalePortrait.value = 200
+      controls.value = []; dpads.value = []; swipes.value = []; cameras.value = []
+      scaleLandscape.value = 100; scalePortrait.value = 200
       cameraSensitivity.value = 1.0
     }
     await callApi("apply_key_mapping", name)
@@ -402,8 +392,7 @@ async function saveCurrentMapping() {
     controls: controls.value.map((c: any) => ({ id: c.id, type: "single", key: c.key, label: c.label, isMouse: !!c.isMouse, x: c.x, y: c.y, radius: c.radius })),
     dpad: dpads.value.map((d: any) => ({ id: d.id, type: "dpad", x: d.x, y: d.y, size: d.size, keys: d.keys })),
     swipes: swipes.value.map((s: any) => ({ id: s.id, type: "swipe", label: s.label, key: s.key || "", x: s.x, y: s.y, radius: s.radius, path: s.path })),
-    camera: cameras.value.map((cam: any) => ({ id: cam.id, type: "camera", key: cam.key, label: cam.label, x: cam.x, y: cam.y, radius: cam.radius })),
-    cameras_local: cameras_local.value.map((cam: any) => ({ id: cam.id, type: "camera_local", key: cam.key, label: cam.label, x: cam.x, y: cam.y, radius: cam.radius })),
+    cameras: cameras.value.map((cam: any) => ({ id: cam.id, type: cam.type, key: cam.key, label: cam.label, x: cam.x, y: cam.y, radius: cam.radius })),
   }
   try {
     await callApi("save_key_mapping_file", currentFile.value, data)
@@ -442,7 +431,7 @@ async function deleteFile(name: string) {
     keyMappingFiles.value = keyMappingFiles.value.filter(f => f !== name)
     if (currentFile.value === name) {
       currentFile.value = keyMappingFiles.value[0] || ""
-      controls.value = []; dpads.value = []; swipes.value = []; cameras.value = []; cameras_local.value = []; lastSwipePath.value = []
+      controls.value = []; dpads.value = []; swipes.value = []; cameras.value = []; lastSwipePath.value = []
       editingControlId.value = null; editingDpadId.value = null; editingDpadDir.value = null
       if (currentFile.value) await switchFile(currentFile.value, true)
     }
@@ -520,7 +509,8 @@ function createCameraControl() {
 function createCameraLocalControl() {
   contextMenu.value.show = false
   if (!kmCanvasRef.value) return
-  if (cameras.value.length === 0) return
+  // 至少有一个全局 camera 才能创建局部
+  if (cameras.value.filter(c => c.type === 'camera').length === 0) return
   const norm = toNormalizedCoords(contextMenu.value.x, contextMenu.value.y)
   const cam = {
     id: controlId("caml"),
@@ -531,7 +521,7 @@ function createCameraLocalControl() {
     y: norm.y,
     radius: 15
   }
-  cameras_local.value.push(cam)
+  cameras.value.push(cam)
   editingControlId.value = cam.id
   setupKeyCapture()
   autoSave()
@@ -646,12 +636,12 @@ function removeControl(id: string) {
   dpads.value = dpads.value.filter(d => d.id !== id)
   const removedSwipe = swipes.value.find(s => s.id === id)
   swipes.value = swipes.value.filter(s => s.id !== id)
-  const removedCamera = cameras.value.find(cam => cam.id === id)
+  // Remove from unified cameras array
+  const removedCamera = cameras.value.find(cam => cam.id === id && cam.type === 'camera')
   cameras.value = cameras.value.filter(cam => cam.id !== id)
+  // If a global camera was removed, also clear all local cameras
   if (removedCamera) {
-    cameras_local.value = []
-  } else {
-    cameras_local.value = cameras_local.value.filter(cam => cam.id !== id)
+    cameras.value = cameras.value.filter(cam => cam.type !== 'camera_local')
   }
   if (removedSwipe && lastSwipePath.value.length > 0) {
     if (JSON.stringify(lastSwipePath.value) === JSON.stringify(removedSwipe.path)) {
@@ -683,9 +673,9 @@ async function setupKeyCapture() {
 
 async function processCapturedKey(key: string) {
   if (editingControlId.value) {
-    const ctrl = [...controls.value, ...swipes.value, ...cameras.value, ...cameras_local.value].find(c => c.id === editingControlId.value)
+    const ctrl = [...controls.value, ...swipes.value, ...cameras.value].find(c => c.id === editingControlId.value)
     if (ctrl) {
-      if (![...controls.value, ...swipes.value, ...cameras.value, ...cameras_local.value].find(c => c.id !== ctrl.id && c.key === key)) {
+      if (![...controls.value, ...swipes.value, ...cameras.value].find(c => c.id !== ctrl.id && c.key === key)) {
         ctrl.key = key; ctrl.label = getKeyLabel(key)
       }
       editingControlId.value = null; autoSave()

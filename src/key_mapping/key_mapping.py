@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from .button_mapping import ButtonMapping
-from .camera_controller import CameraController, LocalCameraController
+from .camera_controller import CameraController
 from .input_detector import InputDetector
 from ..services import services
 
@@ -18,8 +18,6 @@ class KeyMapping:
     def __init__(self):
         self._button_mapping = ButtonMapping()
         self._camera = CameraController()
-        services.camera_controller = self._camera
-        self._local_camera = LocalCameraController()
         self._input = InputDetector()
         self._enabled = False
         self._enabled_before_focus = False
@@ -58,8 +56,8 @@ class KeyMapping:
     def get_mapped_keys(self):
         keys = self._button_mapping.get_mapped_keys()
         if self._active_mapping:
-            for cam_local in self._active_mapping.get("cameras_local", []):
-                k = cam_local.get("key")
+            for cam in self._active_mapping.get("cameras", []):
+                k = cam.get("key")
                 if k:
                     keys.add(k)
         return keys
@@ -83,17 +81,17 @@ class KeyMapping:
             if key_code:
                 self._scrcpy_manager.send_keycode(key_code, 0)
 
-        # Check camera controls first (toggle mode)
-        for cam in self._active_mapping.get("camera", []):
-            if cam.get("key") == key_name:
+        # Check camera controls first (toggle mode - type == "camera")
+        for cam in self._active_mapping.get("cameras", []):
+            if cam.get("type") == "camera" and cam.get("key") == key_name:
                 self._toggle_camera_mode(cam)
                 return True
 
-        # Check local camera controls (temporary local view control)
-        for cam_local in self._active_mapping.get("cameras_local", []):
-            if cam_local.get("key") == key_name:
-                self._local_camera.on_key_down(cam_local)
-                return True  # Always consume the event to prevent repeat triggers
+        # Check local camera controls (hold mode - type == "camera_local")
+        for cam in self._active_mapping.get("cameras", []):
+            if cam.get("type") == "camera_local" and cam.get("key") == key_name:
+                self._camera.on_camera_local_down(cam)
+                return True
 
         # Let button mapping handle controls, swipes, dpad
         if self._button_mapping.on_key_down(key_name):
@@ -123,9 +121,9 @@ class KeyMapping:
                 self._scrcpy_manager.send_keycode(key_code, 1)
 
         # Handle local camera controls (must precede button_mapping to match on_key_down priority)
-        for cam_local in self._active_mapping.get("cameras_local", []):
-            if cam_local.get("key") == key_name:
-                if self._local_camera.on_key_up(cam_local):
+        for cam in self._active_mapping.get("cameras", []):
+            if cam.get("type") == "camera_local" and cam.get("key") == key_name:
+                if self._camera.on_camera_local_up(cam):
                     return True
 
         # Let button mapping handle controls and dpad
@@ -149,7 +147,6 @@ class KeyMapping:
     def reset(self):
         """Reset all active key states and release pointers."""
         self._camera.reset()
-        self._local_camera.reset()
         self._input.reset()
         self._button_mapping.reset()
         if self._scrcpy_manager:
