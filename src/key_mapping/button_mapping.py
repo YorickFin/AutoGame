@@ -1,4 +1,4 @@
-﻿"""Button mapping executor for controls, swipes, and dpad operations."""
+"""Button mapping executor for controls, swipes, and dpad operations."""
 
 from __future__ import annotations
 
@@ -282,29 +282,5 @@ class ButtonMapping:
                     state["ex"], state["ey"] = new_edge
 
             return True
-
-        return False
-
-    def has_mleft_key_configured(self) -> bool:
-        """Check if any control is configured with MLeft key."""
-        if not self._active_mapping:
-            return False
-
-        for ctrl in self._active_mapping.get("controls", []):
-            if ctrl.get("key") == "MLeft":
-                return True
-
-        for swp in self._active_mapping.get("swipes", []):
-            if swp.get("key") == "MLeft":
-                return True
-
-        for dpad in self._active_mapping.get("dpad", []):
-            for _, info in dpad.get("keys", {}).items():
-                if info.get("key") == "MLeft":
-                    return True
-
-        for cam in self._active_mapping.get("camera", []):
-            if cam.get("key") == "MLeft":
-                return True
 
         return False

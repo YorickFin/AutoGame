@@ -1,4 +1,4 @@
-﻿"""Key mapping executor that orchestrates button mapping, input detection, and camera control."""
+"""Key mapping executor that orchestrates button mapping, input detection, and camera control."""
 
 from __future__ import annotations
 
@@ -69,6 +69,10 @@ class KeyMapping:
         if not self._enabled or not self._active_mapping:
             return False
 
+        # MLeft/MRight 只在全屏3D控制开启时生效
+        if key_name in ("MLeft", "MRight") and not self._camera.active:
+            return False
+
         # Handle input keycodes
         key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
         if self._input.input_shown:
@@ -100,6 +104,10 @@ class KeyMapping:
     def on_key_up(self, key_name):
         """Handle key release - delegate to appropriate module."""
         if not self._enabled or not self._active_mapping:
+            return False
+
+        # MLeft/MRight 只在全屏3D控制开启时生效
+        if key_name in ("MLeft", "MRight") and not self._camera.active:
             return False
 
         # Handle input keycodes
@@ -161,6 +169,3 @@ class KeyMapping:
             self.reset()
         elif focused and not self._enabled and self._enabled_before_focus:
             self._enabled = True
-
-    def has_mleft_key_configured(self):
-        return self._button_mapping.has_mleft_key_configured()

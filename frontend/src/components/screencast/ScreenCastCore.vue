@@ -87,12 +87,10 @@ const hoveredButtons = ref<Record<string, string>>({})
 const isFullscreen = ref(false)
 const showKeyMapping = ref(false)
 const isCameraMode = ref(false)
-const hasMleftKeyConfigured = ref(false)
 let cameraCenterX = 0.5
 let cameraCenterY = 0.5
 let ws: WebSocket | null = null
 let wsReconnectAttempts = 0
-let mleftCheckInterval: number | null = null
 const MAX_WS_RECONNECT = 3
 
 const imeInput = ref<HTMLInputElement>()
@@ -446,15 +444,6 @@ function resizeCanvas() {
   cvs.height = session.value.height
 }
 
-async function checkMleftKeyConfigured() {
-  try {
-    const result = await callApi("has_mleft_key_configured")
-    hasMleftKeyConfigured.value = !!result
-  } catch (e) {
-    console.error("Failed to check MLeft key config:", e)
-  }
-}
-
 async function onPointer(action: number, event: PointerEvent) {
   // 相机模式：使用 pointer 事件驱动 3D 视角
   if (isCameraMode.value) {
@@ -472,11 +461,6 @@ async function onPointer(action: number, event: PointerEvent) {
       handleCameraMove(event)
       return
     }  }
-
-  // 互斥逻辑：MLeft键配置时禁用普通onPointer
-  if (hasMleftKeyConfigured.value) {
-    return
-  }
 
   if (!status.value.running || !session.value.width || !session.value.height || !canvas.value) return
 
@@ -577,16 +561,11 @@ onMounted(async () => {
   }
   ;(window as any).setCameraMode = setCameraMode
 
-  // 初始检查MLeft键状态并定期刷新
-  await checkMleftKeyConfigured()
-  mleftCheckInterval = window.setInterval(checkMleftKeyConfigured, 2000) // 每2秒刷新一次
-
   await nextTick()
   await startConnection()
 })
 onBeforeUnmount(() => {
   if (fpsTimer) window.clearInterval(fpsTimer)
-  if (mleftCheckInterval) window.clearInterval(mleftCheckInterval)
   resizeObserver?.disconnect()
   window.removeEventListener('blur', handleBlur)
   window.removeEventListener('focus', handleFocus)

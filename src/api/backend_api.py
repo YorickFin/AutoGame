@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class BackendApi:
     def __init__(self):
-        self._no_key_names = ['MLeft', 'Middle', 'MSide1', 'MSide2']
+        self._no_key_names = ['Middle', 'MSide1', 'MSide2']
         self._maximized = False
 
     @property
@@ -292,11 +292,6 @@ class BackendApi:
             return self._scrcpy_manager.set_screen_ratio(16, 9)
         return {"ok": False, "error": f"unknown ratio: {ratio}"}
 
-    def has_mleft_key_configured(self):
-        if self._key_mapping:
-            return self._key_mapping.has_mleft_key_configured()
-        return False
-
     def __dir__(self):
         return [
             'get_app_info', 'minimize', 'close', 'toggle_maximize', 'get_screencast_ratio', 'open_url',
@@ -330,5 +325,4 @@ class BackendApi:
             'stop_key_listener',
             'get_pressed_key',
             'get_phone_input_state',
-            'has_mleft_key_configured',
         ]
