@@ -24,7 +24,7 @@ class MacroExecutor:
             '按下': self._down,
             '弹起': self._up,
             '移动': self._move,
-            '滚轮': self._wheel_scroll,
+            '滚轮': self._mouse_wheel,
             '延迟': self._delay,
         }
 
@@ -209,18 +209,18 @@ class MacroExecutor:
         except Exception:
             self._raise_error(f'移动指令参数错误：{action_list}')
 
-    def _wheel_scroll(self, action_list: list, len_al: int, key_mouse_mode: str = 'send'):
+    def _mouse_wheel(self, action_list: list, len_al: int, key_mouse_mode: str = 'send'):
         if len_al not in (2, 4):
             self._raise_error(f'滚轮指令参数个数错误，期望2或4，实际{len_al}：{action_list}')
 
         try:
-            amount = int(action_list[1])
+            distance = int(action_list[1])
             x, y = int(action_list[2]) if len_al == 4 else None, \
                 int(action_list[3]) if len_al == 4 else None
             if self.macro_window:
-                self.macro_window.send_mouse_wheel(amount=amount, x=x, y=y, mode=key_mouse_mode)
+                self.macro_window.send_mouse_wheel(distance=distance, x=x, y=y, mode=key_mouse_mode)
             else:
-                self.mouse.wheel_scroll(amount=amount, x=x, y=y)
+                self.mouse.mouse_wheel(distance=distance, x=x, y=y)
             return True
         except Exception:
             self._raise_error(f'滚轮指令参数错误：{action_list}')

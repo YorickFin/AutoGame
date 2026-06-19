@@ -27,6 +27,10 @@ class MacroFunctions:
     def match(self):
         return services.macro.match
 
+    @property
+    def down_state_keys(self):
+        return services.macro.down_state_keys
+
     def get_screen_size(self):
         import ctypes
         user32 = ctypes.windll.user32
@@ -39,8 +43,7 @@ class MacroFunctions:
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             sleep_time = round(1 / (int(data['每秒次数'])), 4)
-            down_state_keys = data.get('down_state_keys', [])
-            while data['触发键'] in down_state_keys:
+            while data['触发键'] in self.down_state_keys:
                 self.executor.execute_macro(data['宏指令'], key_mouse_mode)
                 time.sleep(sleep_time)
         except Exception as e:
@@ -77,10 +80,9 @@ class MacroFunctions:
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
             instruct = data['宏指令'].split(',')
-            down_state_keys = data.get('down_state_keys', [])
-            while data['触发键'] in down_state_keys:
+            while data['触发键'] in self.down_state_keys:
                 for macro in instruct:
-                    if data['触发键'] not in down_state_keys:
+                    if data['触发键'] not in self.down_state_keys:
                         return
                     self.executor.execute_macro(macro, key_mouse_mode)
                     if '后置指令' in data:
