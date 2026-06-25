@@ -42,9 +42,18 @@ let keyNameInterval: ReturnType<typeof setInterval> | null = null
 let mousePositionInterval: ReturnType<typeof setInterval> | null = null
 let pixelColorInterval: ReturnType<typeof setInterval> | null = null
 
-const keyNameInputRef = ref<HTMLInputElement | null>(null)
-const mousePositionInputRef = ref<HTMLInputElement | null>(null)
-const pixelColorInputRef = ref<HTMLInputElement | null>(null)
+const showCopiedToast = ref(false)
+let copiedToastTimeout: ReturnType<typeof setTimeout> | null = null
+
+function showCopiedHint() {
+  showCopiedToast.value = true
+  if (copiedToastTimeout) {
+    clearTimeout(copiedToastTimeout)
+  }
+  copiedToastTimeout = setTimeout(() => {
+    showCopiedToast.value = false
+  }, 1500)
+}
 
 async function startKeyNameListening() {
   if (keyNameInterval) return
@@ -52,14 +61,11 @@ async function startKeyNameListening() {
   keyNameInterval = setInterval(async () => {
     try {
       const keyNameResult = await window.pywebview.api.get_key_name()
-      if (keyNameResult) {
-        if (keyNameResult === 'MLeft') {
-          keyName.value = keyNameResult
-        } else if (keyNameResult !== keyName.value) {
-          keyName.value = keyNameResult
-          stopKeyNameListening()
+      if (keyNameResult && keyNameResult !== keyName.value) {
+        keyName.value = keyNameResult
+        if (keyNameResult !== 'MLeft') {
+          clearKeyNameInterval()
         }
-        console.log(keyName.value)
       }
     } catch (e) {
       console.error('Error listening for key name:', e)
@@ -67,15 +73,12 @@ async function startKeyNameListening() {
   }, 100)
 }
 
-function stopKeyNameListening() {
+function clearKeyNameInterval() {
   if (keyNameInterval) {
     clearInterval(keyNameInterval)
     keyNameInterval = null
   }
   isListeningKeyName.value = false
-  if (keyNameInputRef.value) {
-    keyNameInputRef.value.blur()
-  }
 }
 
 function onKeyNameFocus() {
@@ -83,7 +86,11 @@ function onKeyNameFocus() {
 }
 
 function onKeyNameBlur() {
-  stopKeyNameListening()
+  clearKeyNameInterval()
+  if (keyName.value && keyName.value !== '按键名称') {
+    navigator.clipboard.writeText(keyName.value).catch(() => {})
+    showCopiedHint()
+  }
 }
 
 const editorRef = ref<HTMLDivElement | null>(null)
@@ -251,57 +258,30 @@ async function saveFile() {
 }
 
 function stopAllListening() {
-  if (keyNameInterval) {
-    clearInterval(keyNameInterval)
-    keyNameInterval = null
-  }
-  if (mousePositionInterval) {
-    clearInterval(mousePositionInterval)
-    mousePositionInterval = null
-  }
-  if (pixelColorInterval) {
-    clearInterval(pixelColorInterval)
-    pixelColorInterval = null
-  }
-  isListeningKeyName.value = false
-  isListeningMousePosition.value = false
-  isListeningPixelColor.value = false
-
-  if (keyNameInputRef.value) {
-    keyNameInputRef.value.blur()
-  }
-  if (mousePositionInputRef.value) {
-    mousePositionInputRef.value.blur()
-  }
-  if (pixelColorInputRef.value) {
-    pixelColorInputRef.value.blur()
-  }
+  clearKeyNameInterval()
+  clearMousePositionInterval()
+  clearPixelColorInterval()
 }
 
-function stopMousePositionListening() {
+function clearMousePositionInterval() {
   if (mousePositionInterval) {
     clearInterval(mousePositionInterval)
     mousePositionInterval = null
   }
   isListeningMousePosition.value = false
-  if (mousePositionInputRef.value) {
-    mousePositionInputRef.value.blur()
-  }
 }
 
-function stopPixelColorListening() {
+function clearPixelColorInterval() {
   if (pixelColorInterval) {
     clearInterval(pixelColorInterval)
     pixelColorInterval = null
   }
   isListeningPixelColor.value = false
-  if (pixelColorInputRef.value) {
-    pixelColorInputRef.value.blur()
-  }
 }
 
 async function startMousePositionListening() {
-  stopAllListening()
+  clearKeyNameInterval()
+  clearPixelColorInterval()
   isListeningMousePosition.value = true
   mousePositionInterval = setInterval(async () => {
     try {
@@ -315,8 +295,18 @@ async function startMousePositionListening() {
   }, 50)
 }
 
+function onMousePositionBlur() {
+  clearMousePositionInterval()
+  if (mousePosition.value && mousePosition.value !== '鼠标位置') {
+    const clipboardText = String(mousePosition.value).replace(',', ' ')
+    navigator.clipboard.writeText(clipboardText).catch(() => {})
+    showCopiedHint()
+  }
+}
+
 async function startPixelColorListening() {
-  stopAllListening()
+  clearKeyNameInterval()
+  clearMousePositionInterval()
   isListeningPixelColor.value = true
   pixelColorInterval = setInterval(async () => {
     try {
@@ -330,20 +320,28 @@ async function startPixelColorListening() {
   }, 50)
 }
 
+function onPixelColorBlur() {
+  clearPixelColorInterval()
+  if (pixelColor.value && pixelColor.value !== '颜色获取') {
+    navigator.clipboard.writeText(String(pixelColor.value)).catch(() => {})
+    showCopiedHint()
+  }
+}
+
 function handleKeyPressStop(_e: KeyboardEvent) {
-  stopMousePositionListening()
-  stopPixelColorListening()
+  clearMousePositionInterval()
+  clearPixelColorInterval()
 }
 
 function handleMouseClickStop(_e: MouseEvent) {
-  stopMousePositionListening()
-  stopPixelColorListening()
+  clearMousePositionInterval()
+  clearPixelColorInterval()
 }
 
 function handleWindowBlur() {
-  stopKeyNameListening()
-  stopMousePositionListening()
-  stopPixelColorListening()
+  clearKeyNameInterval()
+  clearMousePositionInterval()
+  clearPixelColorInterval()
 }
 
 function goBack() {
@@ -390,7 +388,6 @@ function enableEditor() {
         </div>
         <div class="tool-inputs">
           <input
-            ref="keyNameInputRef"
             type="text"
             class="tool-input"
             :class="{ listening: isListeningKeyName }"
@@ -400,21 +397,21 @@ function enableEditor() {
             readonly
           />
           <input
-            ref="mousePositionInputRef"
             type="text"
             class="tool-input"
             :class="{ listening: isListeningMousePosition }"
             :value="mousePosition"
-            @click="startMousePositionListening"
+            @focus="startMousePositionListening"
+            @blur="onMousePositionBlur"
             readonly
           />
           <input
-            ref="pixelColorInputRef"
             type="text"
             class="tool-input"
             :class="{ listening: isListeningPixelColor }"
             :value="pixelColor"
-            @click="startPixelColorListening"
+            @focus="startPixelColorListening"
+            @blur="onPixelColorBlur"
             readonly
           />
         </div>
@@ -430,5 +427,8 @@ function enableEditor() {
     <div class="editor-container">
       <div ref="editorRef" class="codemirror-editor"></div>
     </div>
+    <Transition name="copied-toast">
+      <div v-if="showCopiedToast" class="copied-toast">已复制内容</div>
+    </Transition>
   </div>
 </template>

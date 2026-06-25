@@ -79,7 +79,7 @@ class AutoGameApp:
                 self.debug = False
                 return str(index_path)
         # 开发环境
-        self.debug = False
+        self.debug = True
         return 'http://localhost:5173'
 
     def _create_window(self):

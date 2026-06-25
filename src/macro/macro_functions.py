@@ -181,7 +181,12 @@ class MacroFunctions:
                 return False
             width = x2 - x1
             height = y2 - y1
-            return (width == 1) != (height == 1)
+            if width == height:
+                return False
+            min_line = min(width, height)
+            if min_line < 1 or min_line > 5:
+                return False
+            return True
 
         logger.info(f'功能 追踪 data：{data}')
         try:
@@ -208,6 +213,10 @@ class MacroFunctions:
             key_mouse_mode = data.get("键鼠模式", 'send')
             offset = int(data.get("追踪补偿", 0))
 
+            # 计算实际宽高
+            width = rect[2] - rect[0]
+            height = rect[3] - rect[1]
+
             break_num = 10
             while break_num > 0:
                 if self.macro_window:
@@ -215,19 +224,30 @@ class MacroFunctions:
                 else:
                     np_colors = self.match.screenshot(rect=rect)
 
-                np_colors = np_colors.reshape(1, -1, 3)
-                pixels = np_colors[0]
+                # 转为二维图像 (height, width, 3)
+                img = np_colors.reshape(height, width, 3)
 
-                target_mask = np.all(pixels == target_color, axis=-1)
-                target_indices = np.where(target_mask)[0]
-                if len(target_indices) == 0:
+                # 纵向矩形转置为横向，统一处理
+                if height > width:
+                    img = np.transpose(img, (1, 0, 2))
+                    search_rows = width  # 转置后的行数 = 原宽度 = 短边
+                else:
+                    search_rows = height  # 行数 = 短边
+
+                # 查找目标颜色（取第一个出现的列坐标）
+                target_mask_2d = np.all(img == target_color, axis=2)
+                target_indices = np.where(target_mask_2d)
+                if len(target_indices[0]) == 0:
                     break_num -= 1
                     logger.info(f'功能 追踪 未找到目标颜色，剩余次数：{break_num}')
                     continue
-                target_idx = target_indices[0]
-                logger.info(f'功能 追踪 找到目标颜色，索引：{target_idx}')
+                target_col = target_indices[1][0]  # 第一个目标颜色的列坐标
+                logger.info(f'功能 追踪 找到目标颜色，列坐标：{target_col}')
 
-                track_mask = np.all(pixels == track_color, axis=-1)
+                # 合并行：每列是否至少有一行匹配追踪颜色
+                track_mask_2d = np.all(img == track_color, axis=2)
+                track_mask = np.any(track_mask_2d[:search_rows], axis=0)
+
                 padded = np.pad(track_mask, (1, 1), constant_values=False)
                 changes = np.diff(padded.astype(int))
                 starts = np.where(changes == 1)[0]
@@ -238,13 +258,13 @@ class MacroFunctions:
                     continue
                 head = starts[0] + offset
                 tail = ends[-1] - offset
-                logger.info(f'功能 追踪 找到追踪颜色，头索引：{head}，尾索引：{tail}')
+                logger.info(f'功能 追踪 找到追踪颜色，头索引：{head}，尾索引：{tail}，搜索行数：{search_rows}')
 
                 break_num = 10
 
-                if head >= target_idx and '大于分支' in data:
+                if head >= target_col and '大于分支' in data:
                     self.executor.execute_macro(data['大于分支'], key_mouse_mode)
-                elif tail <= target_idx and '小于分支' in data:
+                elif tail <= target_col and '小于分支' in data:
                     self.executor.execute_macro(data['小于分支'], key_mouse_mode)
                 else:
                     time.sleep(0.2)
