@@ -196,6 +196,8 @@ class UtilsFile:
                             command_keys.extend(value.split(','))
 
                 for i in command_keys:
+                    if '延迟' in i:
+                        continue
                     for j in i.split():
                         if (j in mouse_buttons or j in Hex_Key_Code) and j not in keys:
                             keys.append(j)
