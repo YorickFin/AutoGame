@@ -18,6 +18,12 @@ class FrontendApi:
         return services.scrcpy_manager
 
     def _is_window_valid(self):
+        """
+        Desc:
+            检查前端窗口是否有效可用
+        Returns:
+            bool: 窗口有效返回 True，否则返回 False
+        """
         window = self._window
         if not window:
             return False
@@ -31,6 +37,10 @@ class FrontendApi:
             return False
 
     def disable_json_editor(self):
+        """
+        Desc:
+            禁用前端的 JSON 编辑器
+        """
         if self._is_window_valid():
             try:
                 self._window.evaluate_js('window.disableJsonEditor && window.disableJsonEditor()')
@@ -38,6 +48,10 @@ class FrontendApi:
                 logger.error(f'disable_json_editor 执行失败: {e}')
 
     def enable_json_editor(self):
+        """
+        Desc:
+            启用前端的 JSON 编辑器
+        """
         if self._is_window_valid():
             try:
                 self._window.evaluate_js('window.enableJsonEditor && window.enableJsonEditor()')
@@ -45,6 +59,10 @@ class FrontendApi:
                 logger.error(f'enable_json_editor 执行失败: {e}')
 
     def save_json_file(self):
+        """
+        Desc:
+            触发前端保存 JSON 文件操作
+        """
         if self._is_window_valid():
             try:
                 self._window.evaluate_js('window.saveFile && window.saveFile()')
@@ -52,6 +70,10 @@ class FrontendApi:
                 logger.error(f'save_json_file 执行失败: {e}')
 
     def toggle_screencast_fullscreen(self):
+        """
+        Desc:
+            切换投屏全屏/窗口模式
+        """
         if self._is_window_valid():
             try:
                 self._window.evaluate_js('window.toggleScreencastFullscreen && window.toggleScreencastFullscreen()')
@@ -59,6 +81,13 @@ class FrontendApi:
                 logger.error(f'toggle_screencast_fullscreen 执行失败: {e}')
 
     def _notify_input_state(self, shown: bool, just_hidden: bool):
+        """
+        Desc:
+            通知前端输入状态变化
+        Args:
+            shown (bool): 键盘是否显示
+            just_hidden (bool): 是否刚隐藏键盘
+        """
         try:
             if self._is_window_valid():
                 js = f"window.__onInputState && window.__onInputState({str(shown).lower()},{str(just_hidden).lower()})"
@@ -67,6 +96,13 @@ class FrontendApi:
             pass
 
     def notify_camera_mode_change(self, active, data):
+        """
+        Desc:
+            通知前端摄像头模式变化
+        Args:
+            active (bool): 是否启用摄像头模式
+            data (dict or None): 摄像头数据，包含 center 和 sensitivity 字段
+        """
         if not self._is_window_valid():
             return
         try:
@@ -82,7 +118,10 @@ class FrontendApi:
             pass
 
     def poll_input(self):
-        """Poll input from frontend and send to device."""
+        """
+        Desc:
+            从前端轮询输入内容并发送到设备
+        """
         if not self._is_window_valid():
             return
         try:
