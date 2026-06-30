@@ -43,6 +43,7 @@ class Macro:
             '固定连击': lambda data: self.functions.fixed_continuous(data),
             '宏': lambda data: self.functions.macros(data),
             '有序宏': lambda data: self.functions.ordered_macros(data),
+            '自增': lambda data: self.functions.increment(data),
             '跟随': lambda data: self.functions.follow(data, True),
             '组合': lambda data, args: self.functions.combination(data, args),
             '映射': lambda data, args: self.functions.mappings(data, args),

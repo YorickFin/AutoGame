@@ -28,7 +28,7 @@ class MacroExecutor:
             '延迟': self._delay,
         }
 
-        self.function_names = ['固定连击', '宏', '截图', '追踪', '图像匹配', '颜色匹配', '文字识别']
+        self.function_names = ['固定连击', '宏', '自增', '截图', '追踪', '图像匹配', '颜色匹配', '文字识别']
 
         self.mouse = Mouse()
         self.keyboard = KeyBoard()

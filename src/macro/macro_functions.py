@@ -91,6 +91,37 @@ class MacroFunctions:
             logger.error(f'功能 有序宏 报错信息：{e}')
             raise e
 
+    def increment(self, data: dict):
+        logger.info(f'功能 自增 data：{data}')
+        try:
+            key_mouse_mode = data.get("键鼠模式", 'send')
+            instruct = data['宏指令'].split(',')
+            if len(instruct) != 1:
+                logger.error(f'功能 自增 只接受一个带坐标的指令，当前数据：{data}')
+                return
+            instruct_list = instruct[0].split(' ')
+            if len(instruct_list) <= 2:
+                logger.error(f'功能 自增 只接受一个带坐标的指令，当前数据：{data}')
+                return
+            x, y = map(int, instruct_list[1:3])
+            increment_count = int(data['自增次数'])
+            increment_value = list(map(int, data['自增数值'].split(',')))
+            operation_interval = float(data['操作间隔'])
+            for i in range(increment_count):
+                if len(instruct_list) > 3:
+                    self.executor.execute_macro(f'{instruct_list[0]} {x} {y} {instruct_list[3:]}', key_mouse_mode)
+                else:
+                    self.executor.execute_macro(f'{instruct_list[0]} {x} {y}', key_mouse_mode)
+                x += increment_value[0]
+                if len(increment_value) > 1:
+                    y += increment_value[1]
+                time.sleep(operation_interval)
+            if '后置指令' in data:
+                self.executor.execute_macro(data['后置指令'], key_mouse_mode)
+        except Exception as e:
+            logger.error(f'功能 自增 报错信息：{e}')
+            raise e
+
     def follow(self, data: dict, state: bool):
         logger.info(f'功能 跟随 data：{data}')
         try:
