@@ -73,13 +73,9 @@ class KeyMapping:
 
         # Handle input keycodes
         key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
-        if self._input.input_shown:
-            if key_code in (62, 66, 67):
-                self._scrcpy_manager.send_keycode(key_code, 0)
+        if key_code:
+            self._scrcpy_manager.send_keycode(key_code, 0)
             return True
-        elif not self._input.input_shown:
-            if key_code:
-                self._scrcpy_manager.send_keycode(key_code, 0)
 
         # Check camera controls first (toggle mode - type == "camera")
         for cam in self._active_mapping.get("cameras", []):
@@ -110,15 +106,14 @@ class KeyMapping:
 
         # Handle input keycodes
         key_code = self._scrcpy_manager.ANDROID_KEYCODE_MAP.get(key_name, None)
+        if key_code:
+            self._scrcpy_manager.send_keycode(key_code, 1)
+            return True
+
         if self._input.input_shown:
             if self._api:
                 self._api.poll_input()
-            if key_code in (62, 66, 67):
-                self._scrcpy_manager.send_keycode(key_code, 1)
             return True
-        elif not self._input.input_shown:
-            if key_code:
-                self._scrcpy_manager.send_keycode(key_code, 1)
 
         # Handle local camera controls (must precede button_mapping to match on_key_down priority)
         for cam in self._active_mapping.get("cameras", []):
