@@ -407,6 +407,7 @@ class UtilsFile:
                     '坐标更改': f'{self._macro.get_screen_size()}',
                     '窗口标题': '',
                     '窗口类名': '',
+                    '兼容模式': '否',
                     '鼠标图标更改': '是'
                 }
             ]

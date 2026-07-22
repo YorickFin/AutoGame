@@ -207,6 +207,13 @@ class Macro:
             if self.macro_file[0].get('鼠标图标更改', '否') == '是':
                 self.set_mouse_icon()
 
+            if self.macro_file[0].get('兼容模式', '否') == '是':
+                self.executor.keyboard.compat = True
+                self.executor.mouse.compat = True
+            else:
+                self.executor.keyboard.compat = False
+                self.executor.mouse.compat = False
+
             if self._api:
                 try:
                     self._api.disable_json_editor()
