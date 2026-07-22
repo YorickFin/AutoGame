@@ -190,11 +190,25 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   if (e.key === 'Tab') {
     e.preventDefault()
   }
+  if (e.code === 'Space' || e.key === ' ') {
+    const active = document.activeElement
+    if (active && (active.tagName === 'BUTTON' || active.closest('button'))) {
+      e.preventDefault()
+    }
+  }
+}
+
+function handleGlobalClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  const button = target.closest('button')
+  if (button) {
+    button.blur()
+  }
 }
 
 onMounted(() => {
-  // 全局禁用 Tab 切换焦点的默认行为
   window.addEventListener('keydown', handleGlobalKeydown, true)
+  window.addEventListener('click', handleGlobalClick, true)
 
   pollForConfig()
   // 每秒检查一次是否有新的错误
@@ -225,6 +239,7 @@ onUnmounted(() => {
     clearInterval(logCheckInterval)
   }
   window.removeEventListener('keydown', handleGlobalKeydown, true)
+  window.removeEventListener('click', handleGlobalClick, true)
 })
 
 provide('theme', currentTheme)
