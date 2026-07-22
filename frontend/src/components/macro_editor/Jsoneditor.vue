@@ -298,7 +298,7 @@ async function startMousePositionListening() {
 function onMousePositionBlur() {
   clearMousePositionInterval()
   if (mousePosition.value && mousePosition.value !== '鼠标位置') {
-    const clipboardText = String(mousePosition.value).replace(',', ' ')
+    const clipboardText = String(mousePosition.value).replace(',', '')
     navigator.clipboard.writeText(clipboardText).catch(() => {})
     showCopiedHint()
   }
