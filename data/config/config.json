@@ -6,10 +6,9 @@
         "videoSource": "display",
         "audioSource": "output",
         "quality": "unlimited",
-        "bitrate": 10,
+        "bitrate": 20,
         "fpsLimit": 120,
-        "aspectRatio": "reset",
-        "showFps": true
+        "aspectRatio": "reset"
     },
-    "keyMappingFile": "新建键位1"
+    "keyMappingFile": "默认键位"
 }
