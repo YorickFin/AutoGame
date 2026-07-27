@@ -222,6 +222,13 @@ function selectFps(fps: number) {
       </button>
     </div>
 
+    <div class="connection-status" v-if="connectionMode">
+      <div class="status-indicator" :class="connectionMode"></div>
+      <span>
+        {{ connectionMode === 'usb' ? 'USB连接中' : connectionMode === 'wireless' ? '无线连接中' : '仅控制模式' }}
+      </span>
+    </div>
+
     <div class="settings-grid">
 
       <!-- 视频来源 -->
@@ -432,13 +439,6 @@ function selectFps(fps: number) {
           />
         </div>
       </div>
-    </div>
-
-    <div class="connection-status" v-if="connectionMode">
-      <div class="status-indicator" :class="connectionMode"></div>
-      <span>
-        {{ connectionMode === 'usb' ? 'USB连接中' : connectionMode === 'wireless' ? '无线连接中' : '仅控制模式' }}
-      </span>
     </div>
   </div>
 </template>

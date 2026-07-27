@@ -273,9 +273,17 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-top: 24px;
-  padding: 14px 20px;
+  margin-bottom: 24px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 52px;
+  width: 100%;
+  max-width: 500px;
+  padding: 6px 20px;
   border-radius: 10px;
+  box-sizing: border-box;
+  font-weight: 500;
+  font-size: 15px;
 }
 
 .screencast-view[data-theme="dark"] .connection-status {
@@ -319,7 +327,7 @@
 }
 
 .connection-status span {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -408,6 +416,10 @@
 
   .connect-btn {
     min-width: 100%;
+  }
+
+  .connection-status {
+    max-width: 100%;
   }
 
   .settings-grid {

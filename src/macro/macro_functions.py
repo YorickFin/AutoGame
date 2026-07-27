@@ -44,7 +44,8 @@ class MacroFunctions:
             key_mouse_mode = data.get("键鼠模式", 'send')
             sleep_time = round(1 / (int(data['每秒次数'])), 4)
             while data['触发键'] in self.down_state_keys:
-                self.executor.execute_macro(data['宏指令'], key_mouse_mode)
+                self.executor.execute_macro(f"按下 {data['宏指令']}", key_mouse_mode)
+                self.executor.execute_macro(f"弹起 {data['宏指令']}", key_mouse_mode)
                 time.sleep(sleep_time)
         except Exception as e:
             logger.error(f'功能 连击 报错信息：{e}')
