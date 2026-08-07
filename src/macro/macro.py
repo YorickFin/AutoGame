@@ -19,6 +19,7 @@ class Macro:
         self.key_name = None
         self.macro_file = None
         self.down_state_keys = []
+        self.auxiliary_history = {}
         self.set_cursor_flag = False
         self.listening_for_key = False
         self.listening_key_target = None
@@ -117,6 +118,7 @@ class Macro:
 
     def set_macro_file(self, macro_file: dict):
         self.macro_file = macro_file
+        self.auxiliary_history.clear()
 
     def set_macro_switch_key(self, key: str):
         self.macro_switch_key = key
@@ -166,15 +168,28 @@ class Macro:
                             auxiliary_n = '辅助2'
                             mapping = '映射1'
                             mapping_n = '映射2'
+                            self.auxiliary_history[id(data)] = auxiliary
 
                         elif data['辅助2'] in self.down_state_keys:
                             auxiliary = '辅助2'
                             auxiliary_n = '辅助1'
                             mapping = '映射2'
                             mapping_n = '映射1'
+                            self.auxiliary_history[id(data)] = auxiliary
+
                         else:
-                            logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失，当前数据：{data}')
-                            return False
+                            auxiliary = self.auxiliary_history.get(id(data))
+                            if auxiliary == '辅助1':
+                                auxiliary_n = '辅助2'
+                                mapping = '映射1'
+                                mapping_n = '映射2'
+                            elif auxiliary == '辅助2':
+                                auxiliary_n = '辅助1'
+                                mapping = '映射2'
+                                mapping_n = '映射1'
+                            else:
+                                logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失且无历史记录，当前数据：{data}')
+                                continue
                         function = self.function_mapping_down.get(
                             data['功能类型'],
                             lambda _, __: logger.error(f'功能 {data["功能类型"]} 不存在')
