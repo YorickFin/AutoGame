@@ -163,33 +163,18 @@ class Macro:
                         return
 
                     elif self.key_name == data['触发键'] and data['功能类型'] in ['组合', '映射']:
-                        if data['辅助1'] in self.down_state_keys:
-                            auxiliary = '辅助1'
+                        auxiliary = self.auxiliary_history.get(id(data))
+                        if auxiliary == '辅助1':
                             auxiliary_n = '辅助2'
                             mapping = '映射1'
                             mapping_n = '映射2'
-                            self.auxiliary_history[id(data)] = auxiliary
-
-                        elif data['辅助2'] in self.down_state_keys:
-                            auxiliary = '辅助2'
+                        elif auxiliary == '辅助2':
                             auxiliary_n = '辅助1'
                             mapping = '映射2'
                             mapping_n = '映射1'
-                            self.auxiliary_history[id(data)] = auxiliary
-
                         else:
-                            auxiliary = self.auxiliary_history.get(id(data))
-                            if auxiliary == '辅助1':
-                                auxiliary_n = '辅助2'
-                                mapping = '映射1'
-                                mapping_n = '映射2'
-                            elif auxiliary == '辅助2':
-                                auxiliary_n = '辅助1'
-                                mapping = '映射2'
-                                mapping_n = '映射1'
-                            else:
-                                logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失且无历史记录，当前数据：{data}')
-                                continue
+                            logger.error(f'功能 {data["功能类型"]} 错误信息：辅助键缺失且无历史记录，当前数据：{data}')
+                            continue
                         function = self.function_mapping_down.get(
                             data['功能类型'],
                             lambda _, __: logger.error(f'功能 {data["功能类型"]} 不存在')
@@ -203,6 +188,18 @@ class Macro:
         except Exception as e:
             logger.error(f'功能 {data["功能类型"]} 报错信息：{e}')
             return False
+
+    def _record_auxiliary_history(self):
+        try:
+            for data in self.macro_file:
+                if '触发键' in data and '功能类型' in data:
+                    if data['功能类型'] in ['组合', '映射']:
+                        if self.key_name == data['辅助1']:
+                            self.auxiliary_history[id(data)] = "辅助1"
+                        elif self.key_name == data['辅助2']:
+                            self.auxiliary_history[id(data)] = "辅助2"
+        except Exception as e:
+            logger.error(f'记录辅助键历史异常: {e}')
 
     def _switch_toggle(self):
         if self.macro_switch:
@@ -267,6 +264,7 @@ class Macro:
 
         if self.macro_switch and self.key_name not in self.down_state_keys:
             self.down_state_keys.append(self.key_name)
+            self._record_auxiliary_history()
             self._macro_trigger()
 
         return False
