@@ -1,15 +1,19 @@
 import time
 import logging
 import numpy as np
+from autoxkit.constants import Hex_Key_Code
 
 from ..services import services
 
 
-
 logger = logging.getLogger(__name__)
+
+HKC = Hex_Key_Code
 
 
 class MacroFunctions:
+
+    button_mapping = ['MLeft', 'MRight', 'Middle', 'MSide1', 'MSide2']
 
     @property
     def executor(self):
@@ -42,11 +46,17 @@ class MacroFunctions:
         logger.info(f'功能 连击 data：{data}')
         try:
             key_mouse_mode = data.get("键鼠模式", 'send')
-            sleep_time = round(1 / (int(data['每秒次数'])), 4)
+            sleep_time = round(1 / (int(data['每秒次数'])) / 2, 4)
+            command = ''
+            for i in data['宏指令'].split(','):
+                if i in HKC or i in self.button_mapping:
+                    command += f'按下 {i},延迟 {sleep_time},弹起 {i},延迟 {sleep_time},'
+                else:
+                    command += f'{i},延迟 {sleep_time * 2},'
+            command = command[:-1]
+            print(command)
             while data['触发键'] in self.down_state_keys:
-                self.executor.execute_macro(f"按下 {data['宏指令']}", key_mouse_mode)
-                self.executor.execute_macro(f"弹起 {data['宏指令']}", key_mouse_mode)
-                time.sleep(sleep_time)
+                self.executor.execute_macro(command, key_mouse_mode)
         except Exception as e:
             logger.error(f'功能 连击 报错信息：{e}')
             raise e
