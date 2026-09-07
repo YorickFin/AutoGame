@@ -166,6 +166,122 @@ function close() {
   }
 }
 
+// ===== 窗口边缘拉伸（resize）功能 =====
+type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+const MIN_WIDTH = 480
+const MIN_HEIGHT = 360
+
+interface ResizeState {
+  direction: ResizeDirection
+  startScreenX: number
+  startScreenY: number
+  initX: number
+  initY: number
+  initW: number
+  initH: number
+  pendingX: number
+  pendingY: number
+  pendingW: number
+  pendingH: number
+  rafId: number | null
+}
+
+let resizeState: ResizeState | null = null
+
+async function startResize(direction: ResizeDirection, e: MouseEvent) {
+  // 最大化状态下不允许拉伸
+  if (isMaximized.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  try {
+    if (!window.pywebview?.api?.get_window_geometry) return
+    const geo = await window.pywebview.api.get_window_geometry()
+    resizeState = {
+      direction,
+      startScreenX: e.screenX,
+      startScreenY: e.screenY,
+      initX: geo.x,
+      initY: geo.y,
+      initW: geo.width,
+      initH: geo.height,
+      pendingX: geo.x,
+      pendingY: geo.y,
+      pendingW: geo.width,
+      pendingH: geo.height,
+      rafId: null,
+    }
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onResizeMove)
+    document.addEventListener('mouseup', onResizeEnd)
+  } catch (err) {
+    console.error('Failed to start resize:', err)
+  }
+}
+
+function onResizeMove(e: MouseEvent) {
+  if (!resizeState) return
+  // 使用屏幕坐标：窗口移动后 clientX 会随之变化导致反馈循环，screenX 不受窗口移动影响
+  const dx = e.screenX - resizeState.startScreenX
+  const dy = e.screenY - resizeState.startScreenY
+  const dir = resizeState.direction
+
+  let x = resizeState.initX
+  let y = resizeState.initY
+  let w = resizeState.initW
+  let h = resizeState.initH
+
+  if (dir.includes('e')) w = resizeState.initW + dx
+  if (dir.includes('w')) {
+    x = resizeState.initX + dx
+    w = resizeState.initW - dx
+  }
+  if (dir.includes('s')) h = resizeState.initH + dy
+  if (dir.includes('n')) {
+    y = resizeState.initY + dy
+    h = resizeState.initH - dy
+  }
+
+  // 最小尺寸约束：超过最小尺寸时回退位置
+  if (w < MIN_WIDTH) {
+    if (dir.includes('w')) x = resizeState.initX + (resizeState.initW - MIN_WIDTH)
+    w = MIN_WIDTH
+  }
+  if (h < MIN_HEIGHT) {
+    if (dir.includes('n')) y = resizeState.initY + (resizeState.initH - MIN_HEIGHT)
+    h = MIN_HEIGHT
+  }
+
+  resizeState.pendingX = Math.round(x)
+  resizeState.pendingY = Math.round(y)
+  resizeState.pendingW = Math.round(w)
+  resizeState.pendingH = Math.round(h)
+
+  if (resizeState.rafId === null) {
+    resizeState.rafId = requestAnimationFrame(flushResize)
+  }
+}
+
+function flushResize() {
+  if (!resizeState) return
+  const { pendingX, pendingY, pendingW, pendingH } = resizeState
+  resizeState.rafId = null
+  try {
+    window.pywebview?.api?.set_window_geometry?.(pendingX, pendingY, pendingW, pendingH)
+  } catch (err) {
+    console.error('Failed to flush resize:', err)
+  }
+}
+
+function onResizeEnd() {
+  if (resizeState?.rafId !== null && resizeState?.rafId !== undefined) {
+    cancelAnimationFrame(resizeState.rafId)
+  }
+  resizeState = null
+  document.body.style.userSelect = ''
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+}
+
 async function pollForConfig() {
   const maxAttempts = 50
   let attempts = 0
@@ -240,6 +356,8 @@ onUnmounted(() => {
   }
   window.removeEventListener('keydown', handleGlobalKeydown, true)
   window.removeEventListener('click', handleGlobalClick, true)
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
 })
 
 provide('theme', currentTheme)
@@ -307,6 +425,17 @@ provide('appInfo', appInfo)
           />
         </div>
       </main>
+    </div>
+    <!-- 窗口边缘拉伸手柄（投屏全屏时隐藏） -->
+    <div v-if="!isScreencastFullscreen" class="resize-handles">
+      <div class="rh rh-top" @mousedown="startResize('n', $event)"></div>
+      <div class="rh rh-bottom" @mousedown="startResize('s', $event)"></div>
+      <div class="rh rh-left" @mousedown="startResize('w', $event)"></div>
+      <div class="rh rh-right" @mousedown="startResize('e', $event)"></div>
+      <div class="rh rh-tl" @mousedown="startResize('nw', $event)"></div>
+      <div class="rh rh-tr" @mousedown="startResize('ne', $event)"></div>
+      <div class="rh rh-bl" @mousedown="startResize('sw', $event)"></div>
+      <div class="rh rh-br" @mousedown="startResize('se', $event)"></div>
     </div>
   </div>
 </template>
