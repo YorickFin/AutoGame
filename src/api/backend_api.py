@@ -338,6 +338,48 @@ class BackendApi:
                 logger.error(f'Failed to toggle maximize: {e}')
         return False
 
+    def get_window_geometry(self):
+        """
+        Desc:
+            获取窗口的几何尺寸（位置和大小）
+        Returns:
+            dict: 包含 x, y, width, height 字段
+        """
+        if not self._window:
+            return {'x': 0, 'y': 0, 'width': 0, 'height': 0}
+        try:
+            return {
+                'x': self._window.x,
+                'y': self._window.y,
+                'width': self._window.width,
+                'height': self._window.height,
+            }
+        except Exception as e:
+            logger.error(f'Failed to get window geometry: {e}')
+            return {'x': 0, 'y': 0, 'width': 0, 'height': 0}
+
+    def set_window_geometry(self, x, y, width, height):
+        """
+        Desc:
+            设置窗口的几何尺寸（位置和大小），用于无边框窗口的边缘拉伸
+        Args:
+            x (int): 窗口左上角 x 坐标
+            y (int): 窗口左上角 y 坐标
+            width (int): 窗口宽度
+            height (int): 窗口高度
+        Returns:
+            dict: 操作结果
+        """
+        if not self._window:
+            return {'ok': False}
+        try:
+            self._window.move(x, y)
+            self._window.resize(width, height)
+            return {'ok': True}
+        except Exception as e:
+            logger.error(f'Failed to set window geometry: {e}')
+            return {'ok': False}
+
     def get_screencast_ratio(self):
         """
         Desc:
@@ -705,7 +747,7 @@ class BackendApi:
             list: 可访问的方法名列表
         """
         return [
-            'get_app_info', 'minimize', 'close', 'toggle_maximize', 'get_screencast_ratio', 'open_url',
+            'get_app_info', 'minimize', 'close', 'toggle_maximize', 'get_window_geometry', 'set_window_geometry', 'get_screencast_ratio', 'open_url',
             'get_config_file', 'save_config_file',
             'get_macro_switch_key_name', 'get_key_name', 'get_mouse_position', 'get_pixel_color',
             'get_macro_files', 'load_macrofile', 'save_macrofile',
